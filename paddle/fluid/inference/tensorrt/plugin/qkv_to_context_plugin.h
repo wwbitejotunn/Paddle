@@ -58,13 +58,10 @@ class QkvToContextPluginDynamic : public DynamicPluginTensorRT {
     DeserializeValue(&serial_data, &serial_length, &head_size_);
     DeserializeValue(&serial_data, &serial_length, &scale_);
     DeserializeValue(&serial_data, &serial_length, &with_fp16_);
-    DeserializeValue(&serial_data, &serial_length, &cublas_);
   }
   nvinfer1::IPluginV2DynamicExt* clone() const TRT_NOEXCEPT override {
-    QkvToContextPluginDynamic* ptr = new QkvToContextPluginDynamic(
+    return new QkvToContextPluginDynamic(
         hidden_, head_number_, head_size_, scale_, with_fp16_);
-    ptr->cublas_ = cublas_;
-    return ptr;
   }
 
   const char* getPluginType() const TRT_NOEXCEPT override {
@@ -76,7 +73,7 @@ class QkvToContextPluginDynamic : public DynamicPluginTensorRT {
   size_t getSerializationSize() const TRT_NOEXCEPT override {
     return SerializedSize(hidden_) + SerializedSize(head_number_) +
            SerializedSize(head_size_) + SerializedSize(scale_) +
-           SerializedSize(with_fp16_) + SerializedSize(cublas_);
+           SerializedSize(with_fp16_);
   }
   void serialize(void* buffer) const TRT_NOEXCEPT override {
     SerializeValue(&buffer, hidden_);
@@ -84,7 +81,6 @@ class QkvToContextPluginDynamic : public DynamicPluginTensorRT {
     SerializeValue(&buffer, head_size_);
     SerializeValue(&buffer, scale_);
     SerializeValue(&buffer, with_fp16_);
-    SerializeValue(&buffer, cublas_);
   }
 
   nvinfer1::DimsExprs getOutputDimensions(int output_index,
@@ -123,19 +119,11 @@ class QkvToContextPluginDynamic : public DynamicPluginTensorRT {
 
   void destroy() TRT_NOEXCEPT override { delete this; }
 
-  void attachToContext(cudnnContext* cudnnContext,
-                      cublasContext* cublasContext,
-                      nvinfer1::IGpuAllocator* gpuAllocator)
-    TRT_NOEXCEPT override;
-
-  void detachFromContext() TRT_NOEXCEPT override;
-
  private:
   int hidden_;
   int head_number_;
   int head_size_;
   float scale_;
-  cublasLtHandle_t cublas_{nullptr};
 };
 
 class QkvToContextPluginDynamicCreator : public nvinfer1::IPluginCreator {
