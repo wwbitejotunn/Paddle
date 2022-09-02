@@ -221,11 +221,21 @@ const proto::VarType::TensorDesc &VarDesc::tensor_desc() const {
   PADDLE_ENFORCE_EQ(
       desc_.has_type(),
       true,
+<<<<<<< HEAD
       platform::errors::NotFound("The variable's type was not set."));
   PADDLE_ENFORCE_EQ(
       desc_.type().has_type(),
       true,
       platform::errors::NotFound("The variable's type was not set."));
+=======
+      platform::errors::NotFound("The variable's type was not be set."));
+
+  PADDLE_ENFORCE_EQ(
+      desc_.type().has_type(),
+      true,
+      platform::errors::NotFound("The variable's type was not be set."));
+
+>>>>>>> 54ff8fc4fced0ee5060ebe46f14c11213fec76d6
   switch (desc_.type().type()) {
     case proto::VarType::SELECTED_ROWS:
       return desc_.type().selected_rows();
@@ -250,6 +260,7 @@ std::vector<proto::VarType::TensorDesc> VarDesc::tensor_descs() const {
       true,
       platform::errors::NotFound("The variable's type was not be set."));
   std::vector<proto::VarType::TensorDesc> res;
+
   res.reserve(GetTensorDescNum());
   switch (desc_.type().type()) {
     case proto::VarType::READER:

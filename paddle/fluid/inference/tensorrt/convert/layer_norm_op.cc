@@ -56,12 +56,21 @@ class LayerNormOpConverter : public OpConverter {
 
     nvinfer1::ILayer* layernorm_layer = nullptr;
     if (engine_->with_dynamic_shape()) {
+<<<<<<< HEAD
       // For dynamic shape,
       // the shape of mean and variance will be determine in configuPlugin.
       std::vector<int64_t> mean_shape{1};
       std::vector<int64_t> variance_shape{1};
       bool with_fp16 =
           engine_->WithFp16() && !engine_->disable_trt_plugin_fp16();
+=======
+      int statis_num = 1;
+      for (int i = 1; i < begin_norm_axis; i++) {
+        statis_num *= X->getDimensions().d[i];
+      }
+      std::vector<int64_t> mean_shape{statis_num};
+      std::vector<int64_t> variance_shape{statis_num};
+>>>>>>> 54ff8fc4fced0ee5060ebe46f14c11213fec76d6
       plugin::LayerNormPluginDynamic* plugin =
           new plugin::LayerNormPluginDynamic(
               static_cast<const float*>(bias_weight.get().values),
@@ -76,13 +85,20 @@ class LayerNormOpConverter : public OpConverter {
       layernorm_layer = engine_->AddDynamicPlugin(&X, 1, plugin);
     } else {
       int statis_num = 1;
+<<<<<<< HEAD
       for (int i = 1; i < begin_norm_axis; i++) {
+=======
+      for (int i = 0; i < begin_norm_axis; i++) {
+>>>>>>> 54ff8fc4fced0ee5060ebe46f14c11213fec76d6
         statis_num *= X->getDimensions().d[i];
       }
       std::vector<int64_t> mean_shape{statis_num};
       std::vector<int64_t> variance_shape{statis_num};
+<<<<<<< HEAD
       bool with_fp16 =
           engine_->WithFp16() && !engine_->disable_trt_plugin_fp16();
+=======
+>>>>>>> 54ff8fc4fced0ee5060ebe46f14c11213fec76d6
       plugin::LayerNormPlugin* plugin = new plugin::LayerNormPlugin(
           static_cast<const float*>(bias_weight.get().values),
           bias_weight.get().count,

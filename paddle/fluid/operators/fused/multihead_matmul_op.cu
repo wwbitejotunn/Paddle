@@ -256,6 +256,33 @@ __global__ void broadcast(const T *src,
   }
 }
 
+template <typename T>
+__global__ void broadcast_batch(const T *src,
+                                T *dst,
+                                const int seq_len,
+                                const int head_num,
+                                const int window_num) {
+  int WindownumHeadSeqlen_id = blockIdx.x % (window_num * head_num * seq_len);
+  int dst_offset = blockIdx.x * seq_len;
+
+  if (threadIdx.x < seq_len) {
+    dst[threadIdx.x + dst_offset] =
+        src[threadIdx.x + WindownumHeadSeqlen_id * seq_len];
+  }
+}
+
+// TODO wangbojun for debug
+template<typename T>
+__global__ void print_float(const T *src, int start_index, int end_index, int numPerRow=49, int stride=1){
+  printf("start print float \r\n");
+  for (int i=start_index;i<end_index;i+=stride){
+    printf("%f, ",static_cast<double>(src[i]));
+    if((i-start_index)/stride%numPerRow==numPerRow-1){
+      printf("\r\n");
+    }
+  }
+}
+
 template <typename DeviceContext, typename T>
 class MultiHeadMatMulV2Kernel : public framework::OpKernel<T> {
  public:
@@ -270,7 +297,11 @@ class MultiHeadMatMulV2Kernel : public framework::OpKernel<T> {
     auto *w_d = w->data<T>();
     auto *bias_d = bias->data<T>();
     auto *bias_qk_d = bias_qk ? bias_qk->data<T>() : nullptr;
+
     T scale = static_cast<T>(context.Attr<float>("alpha"));
+
+    auto bias_qk_dims = bias_qk->dims();
+    int window_num = bias_qk_dims[0];
 
     int head_number = context.Attr<int>("head_number");
     // compute q*k with eltadd
@@ -283,18 +314,44 @@ class MultiHeadMatMulV2Kernel : public framework::OpKernel<T> {
     int batch = input_dims[0];
     int seq_len = input_dims[1];
     int hidden = input_dims[2];
+
     Tensor temp_bias_tensor;
     // if bias_qk is[batch, 1, 1, seq_len], the bias_qk_d need to be broadcasted
     if (bias_qk && bias_qk->numel() == (batch * seq_len)) {
       temp_bias_tensor.Resize({batch * head_number * seq_len * seq_len});
-      auto *temp_qk_bias = device_ctx.template Alloc<T>(
-          &temp_bias_tensor, temp_bias_tensor.numel() * sizeof(T));
+      auto *temp_qk_bias =
+          reinterpret_cast<T *>(temp_bias_tensor.mutable_data<T>(
+              platform::CUDAPlace(device_ctx.GetPlace())));
+
       int grid = batch * head_number * seq_len;
       int block = round_up(seq_len);
       broadcast<<<grid, block, 0, stream>>>(
           bias_qk_d, temp_qk_bias, seq_len, head_number);
       bias_qk_d = static_cast<const T *>(temp_qk_bias);
     }
+    // if bias_qk is [window_num,head_number,seq_len,seq_len]
+    // in swin SW-MSA block dim[0] of input is batch_number*windows_number
+    // therefore, we broadcast bias_qk to [window_num*originalBatch,
+    // head_number, seq_len, seq_len]
+
+    if (bias_qk &&
+        bias_qk->numel() == (window_num * head_number * seq_len * seq_len)) {
+      temp_bias_tensor.Resize({batch * head_number * seq_len * seq_len});
+      auto *temp_qk_bias =
+          reinterpret_cast<T *>(temp_bias_tensor.mutable_data<T>(
+              platform::CUDAPlace(device_ctx.GetPlace())));
+
+      int grid = batch * head_number * seq_len;
+      int block = round_up(seq_len);
+
+      if (batch != window_num) {
+        // only broadcast when origin batch = batch/window_num != 1
+        broadcast_batch<<<grid, block, 0, stream>>>(
+            bias_qk_d, temp_qk_bias, seq_len, head_number, window_num);
+        bias_qk_d = static_cast<const T *>(temp_qk_bias);
+      }
+    }
+
     if (!bias_qk) {
       int size = batch * head_number * seq_len * seq_len;
       temp_bias_tensor.Resize({size});
@@ -369,6 +426,13 @@ class MultiHeadMatMulV2Kernel : public framework::OpKernel<T> {
                              __float2half(static_cast<float>(scale)),
                              __float2half(0.0));
     } else {
+      printf("@@@ fp32 input : \r\n");
+      cudaDeviceSynchronize();
+      if(batch==64){
+        print_float<float><<<1,1>>>(reinterpret_cast<float *>(qkptr),0,seq_len*3*head_size*head_number,3*head_size*head_number,1);
+      }
+      cudaDeviceSynchronize();
+      printf("\r\n");
       math::MultiHeadGPUComputeFunctor<T> multihead_compute_func;
       multihead_compute_func(device_ctx,
                              batch,
@@ -381,7 +445,13 @@ class MultiHeadMatMulV2Kernel : public framework::OpKernel<T> {
                              scale,
                              T(0.0));
     }
-
+    printf("@@@ fp32 output : \r\n");
+    cudaDeviceSynchronize();
+    if(batch==64){
+      print_float<float><<<1,1>>>(reinterpret_cast<float *>(tptr),0,seq_len*3*head_size*head_number,3*head_size*head_number,1);
+    }
+    cudaDeviceSynchronize();
+    printf("\r\n");
     int grid = batch * head_number * seq_len;
     int block = head_size;
     transpose<T><<<grid, block, 0, stream>>>(

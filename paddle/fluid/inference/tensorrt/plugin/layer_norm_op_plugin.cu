@@ -106,6 +106,12 @@ int LayerNormPlugin::enqueue(int batch_size,
 #endif
                              cudaStream_t stream) TRT_NOEXCEPT {
   const auto &input_dims = this->getInputDims(0);
+<<<<<<< HEAD
+=======
+  const float *input = reinterpret_cast<const float *>(inputs[0]);
+  float *output = reinterpret_cast<float *const *>(outputs)[0];
+
+>>>>>>> 54ff8fc4fced0ee5060ebe46f14c11213fec76d6
   int begin_norm_axis = begin_norm_axis_;
   float eps = eps_;
 
@@ -338,6 +344,7 @@ int LayerNormPluginDynamic::enqueue(
   for (int i = 0; i < input_dims.nbDims; i++) {
     input_shape.push_back(input_dims.d[i]);
   }
+<<<<<<< HEAD
   // in dynamic shape
   // the batch num should be involved in mean/variance shape
   PADDLE_ENFORCE_EQ(1,
@@ -364,6 +371,11 @@ int LayerNormPluginDynamic::enqueue(
                         "The size of mean vector should be positive,"
                         "but got:%d",
                         variance_shape_[0]));
+=======
+
+  mean_shape_[0] *= input_dims.d[0];      // times batch
+  variance_shape_[0] *= input_dims.d[0];  // times batch
+>>>>>>> 54ff8fc4fced0ee5060ebe46f14c11213fec76d6
 
   const auto input_ddim = phi::make_ddim(input_shape);
   auto matrix_dim = phi::flatten_to_2d(input_ddim, begin_norm_axis);
@@ -392,11 +404,34 @@ int LayerNormPluginDynamic::enqueue(
     VLOG(1) << "TRT Plugin DataType selected. LayerNorm-->fp32";
     const float *input = reinterpret_cast<const float *>(inputs[0]);
     float *output = static_cast<float *>(outputs[0]);
+<<<<<<< HEAD
     float *mean_d = mean_t.mutable_data<float>(platform::CUDAPlace(device_id));
     float *variance_d =
         variance_t.mutable_data<float>(platform::CUDAPlace(device_id));
     float *scale_d = static_cast<float *>(scale_gpu_);
     float *bias_d = static_cast<float *>(bias_gpu_);
+=======
+    scale_t.Resize(phi::make_ddim({feature_size}));
+    bias_t.Resize(phi::make_ddim({feature_size}));
+    mean_t.Resize(phi::make_ddim(mean_shape_));
+    variance_t.Resize(phi::make_ddim(variance_shape_));
+    float *scale_d =
+        scale_t.mutable_data<float>(platform::CUDAPlace(device_id));
+    float *bias_d = bias_t.mutable_data<float>(platform::CUDAPlace(device_id));
+    float *mean_d = mean_t.mutable_data<float>(platform::CUDAPlace(device_id));
+    float *variance_d =
+        variance_t.mutable_data<float>(platform::CUDAPlace(device_id));
+    cudaMemcpyAsync(scale_d,
+                    scale_.data(),
+                    sizeof(float) * feature_size,
+                    cudaMemcpyHostToDevice,
+                    stream);
+    cudaMemcpyAsync(bias_d,
+                    bias_.data(),
+                    sizeof(float) * feature_size,
+                    cudaMemcpyHostToDevice,
+                    stream);
+>>>>>>> 54ff8fc4fced0ee5060ebe46f14c11213fec76d6
 
     phi::LayerNormDirectCUDAFunctor<float> layer_norm;
     layer_norm(stream,
@@ -409,6 +444,7 @@ int LayerNormPluginDynamic::enqueue(
                variance_d,
                begin_norm_axis,
                eps);
+<<<<<<< HEAD
   } else if (input_type == nvinfer1::DataType::kHALF) {
     VLOG(1) << "TRT Plugin DataType selected. LayerNorm-->fp16";
     const half *input = reinterpret_cast<const half *>(inputs[0]);
@@ -431,6 +467,9 @@ int LayerNormPluginDynamic::enqueue(
                variance_d,
                begin_norm_axis,
                eps);
+=======
+
+>>>>>>> 54ff8fc4fced0ee5060ebe46f14c11213fec76d6
   } else {
     PADDLE_THROW(platform::errors::Fatal(
         "The LayerNorm TRT Plugin's input type should be float or half."));
