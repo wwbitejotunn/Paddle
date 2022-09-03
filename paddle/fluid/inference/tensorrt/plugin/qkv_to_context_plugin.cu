@@ -725,7 +725,7 @@ int QkvToContextPluginDynamic::enqueue(
         tptr, output, batch, seq_len, head_number_, head_size_);
 #else //if define TRT_FT_WINDOWS_ATTENTION
     VLOG(1)<<"@@@ use faster transformer trt fused multihead matmul kernel";
-    printf("@@@ use faster transformer trt fused multihead matmul kernel\r\n");
+    // printf("@@@ use faster transformer trt fused multihead matmul kernel\r\n");
     auto *multihead_temp_data =
         multihead_temp_tensor.mutable_data<int16_t>(  // NOLINT
             platform::CUDAPlace(device_id));
@@ -735,7 +735,7 @@ int QkvToContextPluginDynamic::enqueue(
     const int sm = 86; // TODO for A10, sm is 86
     if (ft_dispatcher_fp16_.get() && head_number_ == ft_dispatcher_fp16_num_head_) {}
     else {
-      printf("@@@ ft_dispatcher_fp16_.reset head_number_:%d, head_size_:%d \r\n",head_number_, head_size_);
+      // printf("@@@ ft_dispatcher_fp16_.reset head_number_:%d, head_size_:%d \r\n",head_number_, head_size_);
       ft_dispatcher_fp16_.reset(new fastertransformer::FusedMHARunnerFP16v2(head_number_, head_size_, sm, 1.0f));
       ft_dispatcher_fp16_num_head_ = head_number_;
     }
@@ -778,7 +778,7 @@ int QkvToContextPluginDynamic::enqueue(
     const half *input2_data = nullptr;
     half * temp_qk_bias_mask_data = nullptr;
     if (has_biasqk_mask_){
-      printf("@@@ has biasqk mask \r\n");
+      // printf("@@@ has biasqk mask \r\n");
       VLOG(1)<<"@@@ invokeTransformMask(temp_qk_bias_data,input2_data";
       window_num = input_desc[2].dims.d[0];
       input2_data = static_cast<const half *>(inputs[2]); //mask
@@ -815,26 +815,26 @@ int QkvToContextPluginDynamic::enqueue(
       //       1);
       // }
     }
-    printf("@@@ ft_dispatcher_fp16_ setup, S:%d, Batch: %d, window_num: %d \r\n",
-      S,batch,window_num);
+    // printf("@@@ ft_dispatcher_fp16_ setup, S:%d, Batch: %d, window_num: %d \r\n",
+    //   S,batch,window_num);
     ft_dispatcher_fp16_->setup(S,batch,window_num);
     half *output = static_cast<half *>(outputs[0]);
 
-    if(window_num == 64){
-        printf("@before run \r\n");
-        printf("@ q_buf \r\n");
-        cudaDeviceSynchronize();
-        print_float<half><<<1,1>>>(tptr, 0, batch*seq_len*3*head_number_*head_size_,head_size_,1);
-        cudaDeviceSynchronize();
-        // if(temp_qk_bias_mask_data!=nullptr){
-        //     printf("@ trt_attention_mask \r\n");
-        //     print_float<half><<<1,1>>>(temp_qk_bias_mask_data,0,window_num*seq_len*seq_len,seq_len,1);
-        //     cudaDeviceSynchronize();
-        // }
-        // printf("@ trt_relative_position_bias_ \r\n");
-        // print_float<half><<<1,1>>>(temp_qk_bias_data,0,head_number_*seq_len*seq_len,seq_len,1);
-        // cudaDeviceSynchronize();
-    }
+    // if(window_num == 64){
+    //     printf("@before run \r\n");
+    //     printf("@ q_buf \r\n");
+    //     cudaDeviceSynchronize();
+    //     print_float<half><<<1,1>>>(tptr, 0, batch*seq_len*3*head_number_*head_size_,head_size_,1);
+    //     cudaDeviceSynchronize();
+    //     // if(temp_qk_bias_mask_data!=nullptr){
+    //     //     printf("@ trt_attention_mask \r\n");
+    //     //     print_float<half><<<1,1>>>(temp_qk_bias_mask_data,0,window_num*seq_len*seq_len,seq_len,1);
+    //     //     cudaDeviceSynchronize();
+    //     // }
+    //     // printf("@ trt_relative_position_bias_ \r\n");
+    //     // print_float<half><<<1,1>>>(temp_qk_bias_data,0,head_number_*seq_len*seq_len,seq_len,1);
+    //     // cudaDeviceSynchronize();
+    // }
 
 
     ft_dispatcher_fp16_->run(
@@ -845,12 +845,13 @@ int QkvToContextPluginDynamic::enqueue(
       nullptr,
       output,
       stream);
-    printf("@@@ output after run \r\n");
-    cudaDeviceSynchronize();
-    if(window_num==64){
-      print_float<half><<<1,1>>>(output,0,seq_len*head_size_,head_size_,1);
-    }
-    cudaDeviceSynchronize();
+
+    // printf("@@@ output after run \r\n");
+    // cudaDeviceSynchronize();
+    // if(window_num==64){
+    //   print_float<half><<<1,1>>>(output,0,seq_len*head_size_,head_size_,1);
+    // }
+    // cudaDeviceSynchronize();
     int grid = batch * head_number_ * seq_len;
     int block = head_size_;
 

@@ -41,7 +41,7 @@ add_library(trt_fused_multi_head_attention STATIC IMPORTED)
 set_target_properties(
   trt_fused_multi_head_attention
   PROPERTIES
-  IMPORTED_LOCATION  /home/workplace/swin/paddle_swin_tfplugin/FasterTransformer/build/lib/libtrt_fused_multi_head_attention.a
+  IMPORTED_LOCATION  /home/workplace/swin_speed_test/FasterTransformer/build/lib/libtrt_fused_multi_head_attention.a
 )
 
 nv_library(
