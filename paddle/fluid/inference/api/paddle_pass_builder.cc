@@ -104,10 +104,10 @@ const std::vector<std::string> kTRTSubgraphPasses({
       "swin_attention_biasqk_fold_pass",              //
       "swin_attention1_fuse_pass",                    //
       "vit_attention_fuse_pass",                      //
+      "layernorm_shift_partition_fuse_pass",          //
       "trt_skip_layernorm_fuse_pass",                 //
       "preln_skip_layernorm_fuse_pass",               //
       "preln_residual_bias_fuse_pass",                //
-      "layernorm_shift_partition_fuse_pass",          //
       // "set_transformer_input_convert_pass",           //
       "conv_bn_fuse_pass",                           //
       "unsqueeze2_eltwise_fuse_pass",                //
