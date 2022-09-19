@@ -236,7 +236,7 @@ endif()
 if(WIN32
    OR APPLE
    OR NOT WITH_GPU
-   OR ON_INFER)
+   OR (ON_INFER AND NOT WITH_PYTHON))
   set(WITH_DGC OFF)
 endif()
 
@@ -491,10 +491,15 @@ if(WITH_CUSPARSELT)
   include(external/cusparselt) # download, build, install cusparselt
   list(APPEND third_party_deps extern_cusparselt)
 endif()
-
-if(WITH_TENSORRT)
-  include(external/fastertransformer)
-  list(APPEND third_party_deps extern_fastertransformer)
+if(WITH_GPU
+   AND WITH_TENSORRT
+   AND NOT WIN32
+   AND NOT WITH_ARM
+   AND NOT APPLE)
+  if(${CMAKE_CUDA_COMPILER_VERSION} GREATER_EQUAL 11.0)
+    include(external/fastertransformer)
+    list(APPEND third_party_deps extern_fastertransformer)
+  endif()
 endif()
 
 add_custom_target(third_party ALL DEPENDS ${third_party_deps})
