@@ -2314,6 +2314,7 @@ struct SimpleOpTypeSetTeller : public Teller {
       "fused_token_prune",
       "layernorm_shift_partition",
       "merge_layernorm"};
+      "reverse_roll"};
 };
 
 struct GenericPluginTeller : public Teller {
