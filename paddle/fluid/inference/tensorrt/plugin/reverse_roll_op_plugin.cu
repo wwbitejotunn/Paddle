@@ -210,9 +210,9 @@ int ReverseRollPluginDynamic::enqueue(
   int dim = input_dims.d[2];
   if (input_type == nvinfer1::DataType::kFLOAT) {
     VLOG(3) << "TRT Plugin DataType selected. ReverseRoll-->fp32";
-    printf("@@, batch:%d, window_num_:%d, window_len_:%d, window_size_:%d, input_resolution_:%d, dim:%d, shift_size_:%d",
-            batch, window_num_, window_len_, window_size_, input_resolution_, dim,
-            shift_size_);
+    // printf("@@, batch:%d, window_num_:%d, window_len_:%d, window_size_:%d, input_resolution_:%d, dim:%d, shift_size_:%d \r\n",
+    //         batch, window_num_, window_len_, window_size_, input_resolution_, dim,
+    //         shift_size_);
     invokeReverseRoll(
         reinterpret_cast<float *>(outputs[0]),
         reinterpret_cast<const float *>(inputs[0]),

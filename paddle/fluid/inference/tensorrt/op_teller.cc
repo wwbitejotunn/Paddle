@@ -2313,7 +2313,7 @@ struct SimpleOpTypeSetTeller : public Teller {
       "unsqueeze2",
       "fused_token_prune",
       "layernorm_shift_partition",
-      "merge_layernorm"};
+      "merge_layernorm",
       "reverse_roll"};
 };
 
