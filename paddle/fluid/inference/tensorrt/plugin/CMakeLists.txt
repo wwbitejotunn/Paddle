@@ -36,6 +36,11 @@ list(
   merge_layernorm_op_plugin.cu
   reverse_roll_op_plugin.cu
   generic_plugin.cu)
+if(${TENSORRT_MAJOR_VERSION} GREATER_EQUAL 7 AND NOT WIN32)
+  list(APPEND TRT_FILES many_emb_layernorm_varseqlen_plugin.cu
+       many_emb_Layernorm_varseqlen_kernelMTron.cu
+       many_emb_Layernorm_varseqlen_kernelHFace.cu)
+endif()
 
 list(
   APPEND
