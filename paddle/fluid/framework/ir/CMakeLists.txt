@@ -131,6 +131,8 @@ if(WITH_TENSORRT)
   pass_library(layernorm_shift_partition_fuse_pass inference)
   pass_library(layernorm_shift_partition_2_fuse_pass inference)
   pass_library(reverse_roll_fuse_pass inference)
+  pass_library(reverse_roll_2_fuse_pass inference)
+
 endif()
 
 if(WITH_TENSORRT AND NOT WIN32)
