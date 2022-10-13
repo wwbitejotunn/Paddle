@@ -178,7 +178,7 @@ void LayerNormShiftPartitionFusePass::ApplyImpl(ir::Graph* graph) const {
     new_op_desc.SetAttr("window_size", window_size);
     new_op_desc.SetAttr("input_resolution", input_resolution);
     new_op_desc.Flush();
-
+    
     auto* layernorm_shift_partition = graph->CreateOpNode(&new_op_desc);
 
     IR_NODE_LINK_TO(layer_norm_in, layernorm_shift_partition);

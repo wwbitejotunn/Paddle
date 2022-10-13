@@ -1939,6 +1939,29 @@ struct LayernormShiftPartitionPattern : public PatternBase {
   PATTERN_DECL_NODE(reshape4_out);
 };
 
+// conv2d+elementwise_add+reshape+transpose+layernorm -> conv2d+transpose+preln_residual_bias_layernorm
+//
+
+struct PostConv2dAddLayernormPattern : public PatternBase {
+  PostConv2dAddLayernormPattern(PDPattern* pattern,
+                                 const std::string& name_scope)
+      : PatternBase(pattern, name_scope, "postconv2d_add_layernorm") {}
+  PDNode* operator()(PDNode* in);
+  PATTERN_DECL_NODE(conv2d_00_op);
+  PATTERN_DECL_NODE(conv2d_00_out);
+  PATTERN_DECL_NODE(elementwise_add_10_op);
+  PATTERN_DECL_NODE(elementwise_add_10_in_y);
+  PATTERN_DECL_NODE(elementwise_add_10_out);
+  PATTERN_DECL_NODE(reshapeLike_20_op);
+  PATTERN_DECL_NODE(reshapeLike_20_out);
+  PATTERN_DECL_NODE(transpose2_30_op);
+  PATTERN_DECL_NODE(transpose2_30_out);
+  PATTERN_DECL_NODE(layernorm_40_op);
+  PATTERN_DECL_NODE(layernorm_40_bias);
+  PATTERN_DECL_NODE(layernorm_40_scale);
+  PATTERN_DECL_NODE(layernorm_40_out_y);
+};
+
 // Add support int8 flag
 struct AddSupportInt8 : public PatternBase {
   AddSupportInt8(PDPattern* pattern, const std::string& name_scope)

@@ -3502,6 +3502,61 @@ PDNode *patterns::AddSupportInt8::operator()() {
   return quant_out;
 }
 
+PDNode *patterns::PostConv2dAddLayernormPattern::operator()(PDNode* in) {
+  in->AsInput();
+  std::unordered_set<std::string> reshapeLike_ops{"flatten_contiguous_range","reshape2"};
+  auto conv2d_00_op = pattern->NewNode(conv2d_00_op_repr())
+                             ->assert_is_op("conv2d");
+
+  auto conv2d_00_out = pattern->NewNode(conv2d_00_out_repr())
+                              ->assert_is_op_output("conv2d","Output")
+                              ->assert_is_op_input("elementwise_add", "X")
+                              ->AsIntermediate();
+  auto elementwise_add_10_op = pattern->NewNode(elementwise_add_10_op_repr())
+        ->assert_is_op("elementwise_add");
+  auto elementwise_add_10_in_y = pattern->NewNode(elementwise_add_10_in_y_repr())
+                                        ->assert_is_op_input("elementwise_add","Y")
+                                        ->AsInput();
+  auto elementwise_add_10_out = pattern->NewNode(elementwise_add_10_out_repr())
+    ->assert_is_op_output("elementwise_add","Out")
+    ->assert_is_ops_input(reshapeLike_ops,"X")
+    ->AsIntermediate();
+  auto reshapeLike_20_op = pattern->NewNode(reshapeLike_20_op_repr())
+    ->assert_is_ops(reshapeLike_ops);
+  auto reshapeLike_20_out = pattern->NewNode(reshapeLike_20_out_repr())
+    ->assert_is_ops_output(reshapeLike_ops,"Out")
+    ->assert_is_op_input("transpose2","X")
+    ->AsIntermediate();
+  auto transpose2_30_op = pattern->NewNode(transpose2_30_op_repr())
+    ->assert_is_op("transpose2");
+  auto transpose2_30_out = pattern->NewNode(transpose2_30_out_repr())
+    ->assert_is_op_output("transpose2","Out")
+    ->assert_is_op_input("layer_norm","X")
+    ->AsIntermediate();
+  auto layernorm_40_op = pattern->NewNode(layernorm_40_op_repr())
+    ->assert_is_op("layer_norm");
+  auto layernorm_40_bias = pattern->NewNode(layernorm_40_bias_repr())
+    ->assert_is_op_input("layer_norm","Bias")
+    ->AsInput();
+  auto layernorm_40_scale = pattern->NewNode(layernorm_40_scale_repr())
+    ->assert_is_op_input("layer_norm","Scale")
+    ->AsInput();
+  auto layernorm_40_out_y = pattern->NewNode(layernorm_40_out_y_repr())
+    ->assert_is_op_output("layer_norm","Y")
+    ->AsOutput();
+  conv2d_00_op->LinksFrom({in});
+  conv2d_00_out->LinksFrom({conv2d_00_op});
+  elementwise_add_10_op->LinksFrom({conv2d_00_out,elementwise_add_10_in_y});
+  elementwise_add_10_out->LinksFrom({elementwise_add_10_op});
+  reshapeLike_20_op->LinksFrom({elementwise_add_10_out});
+  reshapeLike_20_out->LinksFrom({reshapeLike_20_op});
+  transpose2_30_op->LinksFrom({reshapeLike_20_out});
+  transpose2_30_out->LinksFrom({transpose2_30_op});
+  layernorm_40_op->LinksFrom({transpose2_30_out,layernorm_40_bias,layernorm_40_scale});
+  layernorm_40_out_y->LinksFrom({layernorm_40_op});
+  return layernorm_40_out_y;
+}
+
 PDNode *patterns::LayernormShiftPartitionPattern::operator()() {
   auto layer_norm_op =
       pattern->NewNode(layer_norm_op_repr())
@@ -3601,6 +3656,9 @@ PDNode *patterns::LayernormShiftPartitionPattern::operator()() {
 
   return reshape4_out;
 }
+
+
+
 
 }  // namespace ir
 }  // namespace framework
