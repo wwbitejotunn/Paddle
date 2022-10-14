@@ -1956,6 +1956,7 @@ struct PostConv2dAddLayernormPattern : public PatternBase {
   PATTERN_DECL_NODE(reshapeLike_20_out);
   PATTERN_DECL_NODE(transpose2_30_op);
   PATTERN_DECL_NODE(transpose2_30_out);
+  PATTERN_DECL_NODE(transpose2_30_outXshape);
   PATTERN_DECL_NODE(layernorm_40_op);
   PATTERN_DECL_NODE(layernorm_40_bias);
   PATTERN_DECL_NODE(layernorm_40_scale);

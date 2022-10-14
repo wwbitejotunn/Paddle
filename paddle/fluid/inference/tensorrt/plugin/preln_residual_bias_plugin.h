@@ -36,11 +36,13 @@ class PrelnResidualBiasPluginDynamic : public DynamicPluginTensorRT {
                                           int scale_size,
                                           int ele_bias_size,
                                           const float eps,
-                                          bool with_fp16)
+                                          bool with_fp16,
+                                          int residual_num)
       : bias_size_(bias_size),
         scale_size_(scale_size),
         ele_bias_size_(ele_bias_size),
-        eps_(eps) {
+        eps_(eps),
+        residual_num_(residual_num) {
     with_fp16_ = with_fp16;
     bias_.resize(bias_size);
     scale_.resize(scale_size);
@@ -58,11 +60,13 @@ class PrelnResidualBiasPluginDynamic : public DynamicPluginTensorRT {
                                           int scale_size,
                                           int ele_bias_size,
                                           const float eps,
-                                          bool with_fp16)
+                                          bool with_fp16,
+                                          int residual_num)
       : bias_size_(bias_size),
         scale_size_(scale_size),
         ele_bias_size_(ele_bias_size),
-        eps_(eps) {
+        eps_(eps),
+        residual_num_(residual_num) {
     with_fp16_ = with_fp16;
     bias_.resize(bias_size);
     scale_.resize(scale_size);
@@ -84,6 +88,7 @@ class PrelnResidualBiasPluginDynamic : public DynamicPluginTensorRT {
     DeserializeValue(&serial_data, &serial_length, &ele_bias_size_);
     DeserializeValue(&serial_data, &serial_length, &eps_);
     DeserializeValue(&serial_data, &serial_length, &with_fp16_);
+    DeserializeValue(&serial_data, &serial_length, &residual_num_);
   }
 
   nvinfer1::IPluginV2DynamicExt* clone() const TRT_NOEXCEPT override;
@@ -146,6 +151,8 @@ class PrelnResidualBiasPluginDynamic : public DynamicPluginTensorRT {
 
   float eps_;
   bool with_fp16_;
+
+  int residual_num_;
 };
 
 class PrelnResidualBiasPluginDynamicCreator : public TensorRTPluginCreator {

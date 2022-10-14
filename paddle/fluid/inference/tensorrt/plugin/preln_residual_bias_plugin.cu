@@ -68,7 +68,7 @@ __inline__ __device__ T blockReduceSumV2(T *val) {
   warpReduceSumV2<T, NUM>(val);
   return (T)0.0f;
 }
-
+template<int RESIDUAL_NUM>
 __global__ void generalAddBiasResidualLayerNormOpt2(
     half2 *normed_output,
     half2 *output,
@@ -80,7 +80,6 @@ __global__ void generalAddBiasResidualLayerNormOpt2(
     int m,
     int n,
     float epsilon) {
-#if CUDA_ARCH_FP16_SUPPORTED(__CUDA_ARCH__)
   __shared__ float s_mean;
   __shared__ float s_variance;
   float x_sum = 0.0f;
@@ -99,7 +98,7 @@ __global__ void generalAddBiasResidualLayerNormOpt2(
       val_1 += static_cast<float>(tmp.x);
       val_2 += static_cast<float>(tmp.y);
     }
-    {
+    if(RESIDUAL_NUM==1){
       tmp = __ldg(&residual[index]);
       val_1 += static_cast<float>(tmp.x);
       val_2 += static_cast<float>(tmp.y);
@@ -139,7 +138,6 @@ __global__ void generalAddBiasResidualLayerNormOpt2(
     }
     normed_output[index] = val;
   }
-#endif
 }
 #endif
 
@@ -204,7 +202,8 @@ nvinfer1::IPluginV2DynamicExt *PrelnResidualBiasPluginDynamic::clone() const
                                              scale_size_,
                                              ele_bias_size_,
                                              eps_,
-                                             with_fp16_);
+                                             with_fp16_,
+                                             residual_num_);
   } else {
     ptr = new PrelnResidualBiasPluginDynamic(bias_.data(),
                                              scale_.data(),
@@ -213,7 +212,8 @@ nvinfer1::IPluginV2DynamicExt *PrelnResidualBiasPluginDynamic::clone() const
                                              scale_size_,
                                              ele_bias_size_,
                                              eps_,
-                                             with_fp16_);
+                                             with_fp16_,
+                                             residual_num_);
   }
 
   ptr->bias_gpu_ = bias_gpu_;
@@ -227,7 +227,11 @@ const char *PrelnResidualBiasPluginDynamic::getPluginType() const TRT_NOEXCEPT {
 }
 
 int PrelnResidualBiasPluginDynamic::getNbOutputs() const TRT_NOEXCEPT {
-  return 2;
+  if(residual_num_==1){
+    return 2;
+  } else {
+    return 1;
+  }
 }
 
 size_t PrelnResidualBiasPluginDynamic::getSerializationSize() const
@@ -237,7 +241,7 @@ size_t PrelnResidualBiasPluginDynamic::getSerializationSize() const
                     SerializedSize(fp16_ele_bias_) +
                     SerializedSize(bias_size_) + SerializedSize(scale_size_) +
                     SerializedSize(ele_bias_size_) + SerializedSize(eps_) +
-                    SerializedSize(with_fp16_);
+                    SerializedSize(with_fp16_)+SerializedSize(residual_num_);
   return ser_size;
 }
 void PrelnResidualBiasPluginDynamic::serialize(void *buffer) const
@@ -251,6 +255,7 @@ void PrelnResidualBiasPluginDynamic::serialize(void *buffer) const
   SerializeValue(&buffer, ele_bias_size_);
   SerializeValue(&buffer, eps_);
   SerializeValue(&buffer, with_fp16_);
+  SerializeValue(&buffer, residual_num_);
 }
 
 nvinfer1::DimsExprs PrelnResidualBiasPluginDynamic::getOutputDimensions(
@@ -342,6 +347,7 @@ int PrelnResidualBiasPluginDynamic::enqueue(
     void *const *outputs,
     void *workspace,
     cudaStream_t stream) TRT_NOEXCEPT {
+  VLOG(0)<<"@@@ preln residual bias plugin, residual_num:"<<residual_num_;
   auto input_dims = input_desc[0].dims;
   int hidden = input_dims.d[2];
   const size_t rows = static_cast<size_t>(
@@ -352,22 +358,38 @@ int PrelnResidualBiasPluginDynamic::enqueue(
   if (input_type == nvinfer1::DataType::kFLOAT) {
     VLOG(1) << "TRT Plugin DataType selected. PrelnResidualBias-->fp32";
     const float *input1 = static_cast<const float *>(inputs[0]);
-    const float *input2 = static_cast<const float *>(inputs[1]);
-
+    const float *input2 = nullptr;
+    if(residual_num_==1){
+      input2 = static_cast<const float *>(inputs[1]);
+    }
     uint64_t seed = 0;
     const float dropout_prob = 0.;
     const bool is_upscale_in_train = false;
     const bool is_test = true;
     const uint64_t increment = 0;
     const float epsilon = eps_;
-    const float *src = input2;
-    const float *residual = input1;
+    const float * src = nullptr;
+    const float * residual = nullptr;
+    if(residual_num_==1){
+      src = input2;
+      residual = input1;
+    } else if(residual_num_==0){
+      src = input1;
+      residual = nullptr;
+    }
     const float *bias = static_cast<float *>(ele_bias_gpu_);
     const float *scale = scale_gpu_;
     const float *layernorm_bias = bias_gpu_;
     uint8_t *mask_data = nullptr;
-    float *dst = static_cast<float *>(outputs[1]);
-    float *layernorm_dst = static_cast<float *>(outputs[0]);
+    float *dst = nullptr;
+    float *layernorm_dst = nullptr;
+    if(residual_num_==1){
+      layernorm_dst = static_cast<float *>(outputs[0]);
+      dst = static_cast<float *>(outputs[1]);
+    } else if(residual_num_==0){
+      layernorm_dst = static_cast<float *>(outputs[0]);
+      dst = nullptr;
+    }
     float *mean = nullptr;
     float *var = nullptr;
     const int VecSize = 8;
@@ -400,32 +422,46 @@ int PrelnResidualBiasPluginDynamic::enqueue(
 #ifdef TRT_PLUGIN_FP16_AVALIABLE
     VLOG(1) << "TRT Plugin DataType selected. PrelnResidualBias-->fp16";
     const half *input1 = static_cast<const half *>(inputs[0]);
-    const half *input2 = static_cast<const half *>(inputs[1]);
-
+    const half *input2 = nullptr;
+    if(residual_num_==1){
+      VLOG(1)<<"@@@ residual_num_==1 static_cast<const half *>(inputs[1]);"
+      input2 = static_cast<const half *>(inputs[1]);
+    }
     uint64_t seed = 0;
     const float dropout_prob = 0.;
     const bool is_upscale_in_train = false;
     const bool is_test = true;
     const uint64_t increment = 0;
     const float epsilon = eps_;
-    const half *src = input2;
     const half *residual = input1;
+    const half *src = input2;
     const half *bias = static_cast<half *>(ele_bias_gpu_);
     const float *scale = scale_gpu_;
     const float *layernorm_bias = bias_gpu_;
     uint8_t *mask_data = nullptr;
-    half *dst = static_cast<half *>(outputs[1]);
     half *layernorm_dst = static_cast<half *>(outputs[0]);
+    half *dst = nullptr;
+    if(residual_num_==1){
+      VLOG(1)<<"@@@ residual_num_==1 static_cast<half *>(outputs[1]);"
+
+      dst = static_cast<half *>(outputs[1]);
+    } else {
+      dst = nullptr;
+    }
     float *mean = nullptr;
     float *var = nullptr;
     const int VecSize = 8;
     // if odd
-#if CUDA_ARCH_FP16_SUPPORTED(__CUDA_ARCH__)
-    if (hidden & 1 == 0) {
+    VLOG(0)<<"@@@ pin preln plugin configrue done in half";
+
+    if (hidden % 2 == 0) {
+      VLOG(0)<<"@@@ Opt2 kernel";
       int half_n = hidden / 2;
       int half_n_32 = (half_n + 31) / 32 * 32;
       int block(std::min(half_n_32, 512));
-      generalAddBiasResidualLayerNormOpt2<<<rows, block, 0, stream>>>(
+      if(residual_num_==1){
+      VLOG(0)<<"@@@ generalAddBiasResidualLayerNormOpt2<1>";
+      generalAddBiasResidualLayerNormOpt2<1><<<rows, block, 0, stream>>>(
           reinterpret_cast<half2 *>(layernorm_dst),
           reinterpret_cast<half2 *>(dst),
           (const half2 *)bias,
@@ -436,6 +472,20 @@ int PrelnResidualBiasPluginDynamic::enqueue(
           rows,
           half_n,
           epsilon);
+      } else if(residual_num_==0) {
+        VLOG(0)<<"@@@ generalAddBiasResidualLayerNormOpt2<0>";
+        generalAddBiasResidualLayerNormOpt2<0><<<rows, block, 0, stream>>>(
+          reinterpret_cast<half2 *>(layernorm_dst),
+          reinterpret_cast<half2 *>(layernorm_dst),
+          (const half2 *)bias,
+          (const half2 *)input1,
+          (const half2 *)nullptr,
+          (const half2 *)scale,
+          (const half2 *)layernorm_bias,
+          rows,
+          half_n,
+          epsilon);
+      }
     } else {
       paddle::operators::FusedLayernormResidualDropoutBiasFunctor<half,
                                                                   uint8_t,
@@ -462,32 +512,6 @@ int PrelnResidualBiasPluginDynamic::enqueue(
           var,
           stream);
     }
-#else
-    paddle::operators::FusedLayernormResidualDropoutBiasFunctor<half,
-                                                                uint8_t,
-                                                                VecSize,
-                                                                float,
-                                                                false>()(
-        rows,
-        cols,
-        seed,
-        dropout_prob,
-        is_upscale_in_train,
-        is_test,
-        increment,
-        epsilon,
-        src,
-        residual,
-        bias,
-        scale,
-        layernorm_bias,
-        mask_data,
-        dst,
-        layernorm_dst,
-        mean,
-        var,
-        stream);
-#endif
 #else
     PADDLE_THROW(platform::errors::Fatal(
         "The Ernie(Bert) tensorRT plugin should be "
