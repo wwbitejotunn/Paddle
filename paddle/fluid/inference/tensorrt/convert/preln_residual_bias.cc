@@ -35,7 +35,7 @@ class PrelnResidualBiasOpConverter : public OpConverter {
     // Declare inputs
     int residual_num = op_desc.HasAttr("Residual_num") ? 
           PADDLE_GET_CONST(int, op_desc.GetAttr("Residual_num")) : 1;
-    VLOG(0)<<"@@ residual_num:"<<residual_num;
+    VLOG(1)<<"@@ residual_num:"<<residual_num;
     auto* input1 = engine_->GetITensor(op_desc.Input("X")[0]);
     nvinfer1::ITensor* input2 = nullptr;
     if(residual_num==1){
@@ -108,7 +108,7 @@ class PrelnResidualBiasOpConverter : public OpConverter {
     if (residual_num == 0) {
       layer = engine_->AddDynamicPlugin(plugin_inputs.data(), 1, plugin);
     } else if(residual_num==1){
-      VLOG(0)<<"@@ pin emplace_back(input2);";
+      VLOG(1)<<"@@ pin emplace_back(input2);";
       plugin_inputs.emplace_back(input2);
       layer = engine_->AddDynamicPlugin(plugin_inputs.data(), 2, plugin);
     }
@@ -118,7 +118,7 @@ class PrelnResidualBiasOpConverter : public OpConverter {
     std::vector<std::string> output_names;
     output_names.push_back(op_desc.Output("Out_0")[0]);
     if(residual_num==1){
-      VLOG(0)<<"@@ pin emplace_back(output_1);";
+      VLOG(1)<<"@@ pin emplace_back(output_1);";
       output_names.push_back(op_desc.Output("Out_1")[0]);
     }
     RreplenishLayerAndOutput(

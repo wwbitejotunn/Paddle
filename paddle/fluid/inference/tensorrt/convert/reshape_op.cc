@@ -35,7 +35,7 @@ class ReshapeOpConverter : public OpConverter {
     framework::OpDesc op_desc(op, nullptr);
     // Declare inputs
     auto* input = engine_->GetITensor(op_desc.Input("X")[0]);
-    VLOG(0)<<"@@@@ reshape input x: "<<op_desc.Input("X")[0];
+    VLOG(1)<<"@@@@ reshape input x: "<<op_desc.Input("X")[0];
     std::vector<int> shape =
         PADDLE_GET_CONST(std::vector<int>, op_desc.GetAttr("shape"));
     int nbDims_num = shape.size();
