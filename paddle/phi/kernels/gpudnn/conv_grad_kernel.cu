@@ -14,7 +14,6 @@
 
 #include "paddle/phi/kernels/conv_grad_kernel.h"
 
-#include "paddle/fluid/framework/eigen.h"
 #include "paddle/phi/backends/gpu/gpu_context.h"
 #include "paddle/phi/core/dense_tensor.h"
 #include "paddle/phi/core/kernel_registry.h"
@@ -25,7 +24,6 @@
 #endif
 
 #include "paddle/fluid/platform/cudnn_workspace_helper.h"
-#include "paddle/fluid/platform/float16.h"
 #include "paddle/fluid/platform/profiler.h"
 #include "paddle/phi/common/bfloat16.h"
 #include "paddle/phi/common/float16.h"
