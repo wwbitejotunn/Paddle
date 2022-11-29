@@ -126,7 +126,7 @@ void GroupNormKernel(const Context& dev_ctx,
                      DenseTensor* mean,
                      DenseTensor* var) {
   using AccT = typename kps::details::MPTypeTrait<T>::Type;
-  const DataLayout data_layout = phi::StringToDataLayout(data_layout_str);
+  const DataLayout data_layout = framework::StringToDataLayout(data_layout_str);
   const auto scale_ptr = scale.get_ptr();
   const auto bias_ptr = bias.get_ptr();
 
