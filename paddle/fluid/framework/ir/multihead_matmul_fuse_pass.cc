@@ -1152,7 +1152,6 @@ int MultiHeadMatmulV2FusePass::BuildFusionV2(Graph* graph,
     // Remove unneeded nodes.
     GraphSafeRemoveNodes(graph, marked_nodes);
     ++fusion_count;
-    VLOG(1)<<"@@@@ multihead_matmul_fuse_pass_v2";
   };
   gpd(graph, handler);
 

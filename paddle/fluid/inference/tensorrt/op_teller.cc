@@ -40,6 +40,7 @@ struct SimpleOpTypeSetTeller : public Teller {
 #if IS_TRT_VERSION_GE(7130)
     // use TensorRT plugin
     teller_set.insert("group_norm");
+    int8_teller_set.insert("group_norm");
     teller_set.insert("multiclass_nms3");
     teller_set.insert("multiclass_nms");
     int8_teller_set.insert("multiclass_nms3");
@@ -760,14 +761,6 @@ struct SimpleOpTypeSetTeller : public Teller {
       auto scale = PADDLE_GET_CONST(std::vector<float>, desc.GetAttr("scale"));
       auto out_h = PADDLE_GET_CONST(int, desc.GetAttr("out_h"));
       auto out_w = PADDLE_GET_CONST(int, desc.GetAttr("out_w"));
-      if (!(out_h > 0 && out_w > 0)) {
-        if (scale.size() < 2) return false;
-        if (scale[0] <= 0.f || scale[1] <= 0.f) {
-          VLOG(3) << "scale factor must be greater than 0 if out_h or out_w is "
-                     "not set.";
-          return false;
-        }
-      }
     }
 
     if (op_type == "bilinear_interp_v2") {
@@ -1741,18 +1734,19 @@ struct SimpleOpTypeSetTeller : public Teller {
                               input_shape[1] == biasqk_shape[3];
         bool is_broadcastable = biasqk_shape[1] == 1 && biasqk_shape[2] == 1 &&
                                 input_shape[1] == biasqk_shape[3];
-        is_broadcastable = is_broadcastable || (biasqk_shape[0] == 1 && biasqk_shape[1] == 1 
-                                                && input_shape[1] == biasqk_shape[2] 
-                                                && input_shape[1] == biasqk_shape[3]);
+        is_broadcastable =
+            is_broadcastable || (biasqk_shape[0] == 1 && biasqk_shape[1] == 1 &&
+                                 input_shape[1] == biasqk_shape[2] &&
+                                 input_shape[1] == biasqk_shape[3]);
         if (!(has_same_shape || is_broadcastable)) {
           VLOG(3) << "The BiasQK's shape is invalid, expect [" << input_shape[0]
                   << ", 1, 1, " << input_shape[1] << "] "
-                  <<"or [" << input_shape[0]<< ", " << head_number << ", " << input_shape[1] << ", "
-                  << input_shape[1] << "] "
-                  <<"or [" << input_shape[0] << "/1, " << 1 << ", " << input_shape[1] << ", "
-                  << input_shape[1] << "] "
-                  <<"but got [" << biasqk_shape[0] << ", " << biasqk_shape[1] << ", " << biasqk_shape[2] << ", "
-                  << biasqk_shape[3] << "].";
+                  << "or [" << input_shape[0] << ", " << head_number << ", "
+                  << input_shape[1] << ", " << input_shape[1] << "] "
+                  << "or [" << input_shape[0] << "/1, " << 1 << ", "
+                  << input_shape[1] << ", " << input_shape[1] << "] "
+                  << "but got [" << biasqk_shape[0] << ", " << biasqk_shape[1]
+                  << ", " << biasqk_shape[2] << ", " << biasqk_shape[3] << "].";
           return false;
         }
       } else {
