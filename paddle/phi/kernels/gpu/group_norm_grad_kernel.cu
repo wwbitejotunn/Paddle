@@ -280,7 +280,7 @@ void GroupNormGradKernel(const Context& dev_ctx,
                          DenseTensor* d_scale,
                          DenseTensor* d_bias) {
   using AccT = typename kps::details::MPTypeTrait<T>::Type;
-  const DataLayout data_layout = framework::StringToDataLayout(data_layout_str);
+  const DataLayout data_layout = paddle::framework::StringToDataLayout(data_layout_str);
   const auto scale_ptr = scale.get_ptr();
   const auto bias_ptr = bias.get_ptr();
 
