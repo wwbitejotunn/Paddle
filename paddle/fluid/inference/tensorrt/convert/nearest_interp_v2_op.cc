@@ -31,7 +31,7 @@ class NearestInterpolateV2OpConverter : public OpConverter {
                   const framework::Scope& scope,
                   bool test_mode) override {
     VLOG(3) << "convert a fluid nearest_interp_v2 op";
-    VLOG(1) << "@@@convert a fluid nearest_interp_v2 op";
+    // VLOG(1) << "@@@convert a fluid nearest_interp_v2 op";
     framework::OpDesc op_desc(op, nullptr);
 
     std::string input_name = op_desc.Input("X").front();
@@ -45,14 +45,14 @@ class NearestInterpolateV2OpConverter : public OpConverter {
         PADDLE_GET_CONST(std::string, op_desc.GetAttr("interp_method"));
     bool align_corners =
         PADDLE_GET_CONST(bool, op_desc.GetAttr("align_corners"));
-    VLOG(1) << "@@@ before resize_inputs = op_desc.Inputs";
+    // VLOG(1) << "@@@ before resize_inputs = op_desc.Inputs";
     auto resize_inputs = op_desc.Inputs();
-    VLOG(1) << "@@@ get const scale ";
+    // VLOG(1) << "@@@ get const scale ";
     bool has_scale_input_attr =
         (resize_inputs.find("Scale") != resize_inputs.end());
 
     auto scale = PADDLE_GET_CONST(std::vector<float>, op_desc.GetAttr("scale"));
-    VLOG(1) << "@@@ after get const scale ";
+    // VLOG(1) << "@@@ after get const scale ";
 
     auto out_h = PADDLE_GET_CONST(int, op_desc.GetAttr("out_h"));
     auto out_w = PADDLE_GET_CONST(int, op_desc.GetAttr("out_w"));
@@ -83,16 +83,16 @@ class NearestInterpolateV2OpConverter : public OpConverter {
     }
     nvinfer1::ITensor* outsize_tensor = nullptr;
     std::vector<nvinfer1::ITensor*> concat_inputs;
-    VLOG(1) << "@@@ before get size tensor";
+    // VLOG(1) << "@@@ before get size tensor";
     if (engine_->with_dynamic_shape() &&
         resize_inputs.find("SizeTensor") != resize_inputs.end()) {
       if (op_desc.Input("SizeTensor").size() > 0) {
-        VLOG(1) << "@@@ have size tensor, before concat";
+        // VLOG(1) << "@@@ have size tensor, before concat";
         for (auto name : op_desc.Input("SizeTensor")) {
           concat_inputs.push_back(engine_->GetITensor(name));
-          VLOG(1) << "@@@@ size tensor name: " << name;
+          // VLOG(1) << "@@@@ size tensor name: " << name;
         }
-        VLOG(1) << "@@@ have size tensor, after concat";
+        // VLOG(1) << "@@@ have size tensor, after concat";
         outsize_tensor = Concat(concat_inputs);
       }
     }
