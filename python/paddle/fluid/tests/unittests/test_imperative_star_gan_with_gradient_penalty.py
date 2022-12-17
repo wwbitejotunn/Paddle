@@ -185,10 +185,10 @@ class Deconv2DLayer(fluid.dygraph.Layer):
     ):
         super().__init__()
 
-        self._deconv = fluid.dygraph.Conv2DTranspose(
-            num_channels=num_channels,
-            num_filters=num_filters,
-            filter_size=filter_size,
+        self._deconv = paddle.nn.Conv2DTranspose(
+            num_channels,
+            num_filters,
+            filter_size,
             stride=stride,
             padding=padding,
             bias_attr=None if use_bias else False,
@@ -409,9 +409,9 @@ def gradient_penalty(f, real, fake, no_grad_set, cfg):
             input=a, shape=shape, min=0.1, max=1.0, seed=cfg.seed
         )
 
-        inner = fluid.layers.elementwise_mul(
+        inner = paddle.tensor.math._multiply_with_axis(
             b, 1.0 - alpha, axis=0
-        ) + fluid.layers.elementwise_mul(a, alpha, axis=0)
+        ) + paddle.tensor.math._multiply_with_axis(a, alpha, axis=0)
         return inner
 
     x = _interpolate(real, fake)
@@ -445,9 +445,7 @@ def get_generator_loss(
 ):
     fake_img = generator(image_real, label_trg)
     rec_img = generator(fake_img, label_org)
-    g_loss_rec = fluid.layers.reduce_mean(
-        paddle.abs(paddle.subtract(image_real, rec_img))
-    )
+    g_loss_rec = paddle.mean(paddle.abs(paddle.subtract(image_real, rec_img)))
 
     pred_fake, cls_fake = discriminator(fake_img)
 
