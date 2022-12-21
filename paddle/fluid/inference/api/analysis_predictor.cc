@@ -2417,7 +2417,7 @@ USE_TRT_CONVERTER(expand_v2)
 USE_TRT_CONVERTER(take_along_axis)
 USE_TRT_CONVERTER(multihead_matmul_v4)
 USE_TRT_CONVERTER(multihead_matmul_v4_cross)
-
+USE_TRT_CONVERTER(skip_groupnorm_act)
 #if PADDLE_WITH_CUSPARSELT && IS_TRT_VERSION_GE(8000)
 USE_TRT_CONVERTER(sparse_fc)
 USE_TRT_CONVERTER(sparse_multihead_matmul)
