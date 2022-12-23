@@ -94,8 +94,10 @@ class NearestInterpolateV2OpConverter : public OpConverter {
         }
         outsize_tensor = Concat(concat_inputs);
       } else {
-        PADDLE_THROW(platform::errors::InvalidArgument(
-            "Invaild SizeTensor for nearest interp v2 trt op."));
+        if (scale.size() <= 1) {
+          PADDLE_THROW(platform::errors::InvalidArgument(
+              "Invaild SizeTensor and scale for nearest interp v2 trt op."));
+        }
       }
     }
 
