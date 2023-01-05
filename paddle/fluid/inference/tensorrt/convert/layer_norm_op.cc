@@ -62,6 +62,9 @@ class LayerNormOpConverter : public OpConverter {
       std::vector<int64_t> variance_shape{1};
       bool with_fp16 =
           engine_->WithFp16() && !engine_->disable_trt_plugin_fp16();
+      if (engine_->precision() == AnalysisConfig::Precision::kInt8) {
+        with_fp16 = true;
+      }
       plugin::LayerNormPluginDynamic* plugin =
           new plugin::LayerNormPluginDynamic(
               static_cast<const float*>(bias_weight.get().values),
