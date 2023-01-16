@@ -140,6 +140,7 @@ if(WITH_TENSORRT)
   pass_library(elementwise_groupnorm_act_pass inference)
   pass_library(preln_elementwise_groupnorm_act_pass inference)
   pass_library(trans_layernorm_fuse_pass inference)
+  pass_library(split_gelu_mul_pass inference)
 endif()
 
 if(WITH_TENSORRT)
