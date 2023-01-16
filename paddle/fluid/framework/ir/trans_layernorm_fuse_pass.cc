@@ -37,7 +37,6 @@ struct TransLayernormPattern : public PatternBase {
   PATTERN_DECL_NODE(transpose_output);
   PATTERN_DECL_NODE(reshape);
   PATTERN_DECL_NODE(reshape_output);
-  PATTERN_DECL_NODE(reshape_output_xshape);
   PATTERN_DECL_NODE(layernorm);
   PATTERN_DECL_NODE(layernorm_scale);
   PATTERN_DECL_NODE(layernorm_bias);
@@ -57,12 +56,8 @@ void TransLayernormPattern::operator()(PDNode *x) {
                              ->assert_is_ops_output(reshape_ops, "Out")
                              ->assert_is_op_input("layer_norm", "X")
                              ->AsOutput();
-  auto *reshape_output_xshape =
-      pattern->NewNode(reshape_output_xshape_repr())
-          ->assert_is_ops_output(reshape_ops, "XShape")
-          ->AsOutput();
   reshape->LinksFrom({transpose_output})
-      .LinksTo({reshape_output, reshape_output_xshape});
+      .LinksTo({reshape_output});
   auto *layernorm =
       pattern->NewNode(layernorm_repr())->assert_is_op("layer_norm");
   auto *layernorm_scale = pattern->NewNode(layernorm_scale_repr())
@@ -108,8 +103,6 @@ int TransLayernormFusePass::ApplyConvTransLayernormPattern(
         transpose_output, transpose_output, fused_pattern);
     GET_IR_NODE_FROM_SUBGRAPH(reshape, reshape, fused_pattern);
     GET_IR_NODE_FROM_SUBGRAPH(reshape_output, reshape_output, fused_pattern);
-    GET_IR_NODE_FROM_SUBGRAPH(
-        reshape_output_xshape, reshape_output_xshape, fused_pattern);
     GET_IR_NODE_FROM_SUBGRAPH(layernorm, layernorm, fused_pattern);
     GET_IR_NODE_FROM_SUBGRAPH(layernorm_scale, layernorm_scale, fused_pattern);
     GET_IR_NODE_FROM_SUBGRAPH(layernorm_bias, layernorm_bias, fused_pattern);
@@ -134,7 +127,6 @@ int TransLayernormFusePass::ApplyConvTransLayernormPattern(
     del_node_set.insert(transpose);
     del_node_set.insert(transpose_output);
     del_node_set.insert(reshape);
-    del_node_set.insert(reshape_output_xshape);
     del_node_set.insert(layernorm);
     GraphSafeRemoveNodes(graph, del_node_set);
 
