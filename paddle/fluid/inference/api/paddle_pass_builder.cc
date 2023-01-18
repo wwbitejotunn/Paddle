@@ -131,6 +131,7 @@ const std::vector<std::string> kTRTSubgraphPasses({
       "dense_multihead_matmul_to_sparse_pass",  //
       "elementwise_groupnorm_act_pass",         //
       "preln_elementwise_groupnorm_act_pass",   //
+      "groupnorm_act_pass",
       "tensorrt_subgraph_pass",                 //
       "conv_bn_fuse_pass",                      //
 #if CUDNN_VERSION >= 7100  // To run conv_fusion, the version of cudnn must be
