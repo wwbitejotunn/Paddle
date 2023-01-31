@@ -74,17 +74,17 @@ bool ElementwiseAddTransposePluginDynamic::supportsFormatCombination(
 
   const nvinfer1::PluginTensorDesc &in = in_out[pos];
   if (pos == 0) {
-    return (in.type == nvinfer1::DataType::kFLOAT ||
+    return (
             in.type == nvinfer1::DataType::kHALF) &&
            (in.format == nvinfer1::TensorFormat::kLINEAR);
   }
   if (pos == 1) {
-    return (in.type == nvinfer1::DataType::kFLOAT ||
+    return (
             in.type == nvinfer1::DataType::kHALF) &&
            (in.format == nvinfer1::TensorFormat::kLINEAR);
   }
   if (pos == 2) {
-    return (in.type == nvinfer1::DataType::kFLOAT ||
+    return (
             in.type == nvinfer1::DataType::kHALF) &&
            (in.format == nvinfer1::TensorFormat::kHWC8);
   }

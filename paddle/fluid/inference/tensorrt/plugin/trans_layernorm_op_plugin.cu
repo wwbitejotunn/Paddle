@@ -221,7 +221,7 @@ bool TransLayerNormPluginDynamic::supportsFormatCombination(
   const nvinfer1::PluginTensorDesc &in = in_out[pos];
   if (pos == 0) {
     if (with_fp16_) {
-      return ((in.type == nvinfer1::DataType::kFLOAT ||
+      return ((
                in.type == nvinfer1::DataType::kHALF) &&
               (
                   // TODO(wangbojun) linear input support latter
@@ -234,7 +234,7 @@ bool TransLayerNormPluginDynamic::supportsFormatCombination(
   }
   if (pos == 1) {
     if (with_fp16_) {
-      return ((in.type == nvinfer1::DataType::kFLOAT ||
+      return ((
                in.type == nvinfer1::DataType::kHALF) &&
               (in.format == nvinfer1::PluginFormat::kLINEAR));
     } else {
@@ -244,7 +244,7 @@ bool TransLayerNormPluginDynamic::supportsFormatCombination(
   }
   if (pos == 2) {
     if (with_fp16_) {
-      return ((in.type == nvinfer1::DataType::kFLOAT ||
+      return ((
                in.type == nvinfer1::DataType::kHALF) &&
               (in.format == nvinfer1::PluginFormat::kLINEAR));
     } else {
