@@ -841,6 +841,10 @@ def fused_multi_transformer(
     ffn1_biases,
     ffn2_weights,
     ffn2_biases,
+    qkv_weight_scale_attrs=None,
+    linear_weight_scale_attrs=None,
+    ffn1_weight_scale_attrs=None,
+    ffn2_weight_scale_attrs=None,
     pre_layer_norm=True,
     epsilon=1e-05,
     cache_kvs=None,
@@ -857,6 +861,7 @@ def fused_multi_transformer(
     trans_qkvw=True,
     ring_id=-1,
     name=None,
+    quant_weight=False
 ):
     r"""
     This is a fusion operator to compute multi transformer layers in transformer model architecture.
@@ -1025,6 +1030,15 @@ def fused_multi_transformer(
             ffn1_biases,
             ffn2_weights,
             ffn2_biases,
+            'qkv_weights_scales',
+            qkv_weights_scales,
+            'linear_weights_scales',
+            linear_weights_scales,
+            'ffn1_weights_scales',
+            ffn1_weights_scales,
+            'ffn2_weights_scales',
+            ffn2_weights_scales,
+            'cache_kvs',
             cache_kvs,
             'pre_layer_norm',
             pre_layer_norm,
@@ -1044,6 +1058,8 @@ def fused_multi_transformer(
             trans_qkvw,
             'ring_id',
             ring_id,
+            'quant_weight',
+            quant_weight,
         )
         if cache_kvs is not None:
             return final_out, cache_kv_out
@@ -1065,6 +1081,13 @@ def fused_multi_transformer(
         inputs['LnScale'] = ln_scales
         inputs['LnBias'] = ln_biases
         inputs['QKVW'] = qkv_weights
+        print("@@@ quant weight:",quant_weight)
+        if quant_weight:
+            inputs['QKVWScale'] = qkv_weights_scales
+            inputs['OutLinearWScale'] = linear_weights_scales
+            inputs['FFN1WeightScale'] = ffn1_weights_scales
+            inputs['FFN2WeightScale'] = ffn2_weights_scales
+
         if qkv_biases is not None:
             inputs['QKVBias'] = qkv_biases
         if cache_kvs is not None:
@@ -1102,6 +1125,7 @@ def fused_multi_transformer(
             'act_method': activation,
             'trans_qkvw': trans_qkvw,
             'ring_id': ring_id,
+            'quant_weight':quant_weight,
         }
 
         outputs = dict()

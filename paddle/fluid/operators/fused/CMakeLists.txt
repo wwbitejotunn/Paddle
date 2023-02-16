@@ -41,7 +41,6 @@ if(WITH_XPU)
   op_library(fused_attention_op)
   op_library(fused_feedforward_op)
 endif()
-
 if(WITH_GPU OR WITH_ROCM)
   # fused_bn_activation_op needs cudnn 7.4.1 above
   # HIP not support bn act fuse in MIOPEN
