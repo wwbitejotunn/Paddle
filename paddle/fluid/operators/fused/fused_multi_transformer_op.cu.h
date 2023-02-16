@@ -33,6 +33,7 @@ limitations under the License. */
 #include "paddle/phi/backends/gpu/gpu_device_function.h"
 #include "paddle/phi/kernels/funcs/math_function.h"
 
+
 #if defined(PADDLE_WITH_NCCL) || defined(PADDLE_WITH_RCCL)
 #include "paddle/fluid/distributed/collective/process_group.h"
 #include "paddle/fluid/platform/collective_helper.h"
