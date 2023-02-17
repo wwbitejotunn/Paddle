@@ -14,6 +14,7 @@ limitations under the License. */
 
 #pragma once
 
+#include <type_traits>
 #include "paddle/fluid/operators/fused/fused_softmax_mask.cu.h"
 #include "paddle/phi/kernels/funcs/broadcast_function.h"
 #include "paddle/phi/kernels/funcs/concat_and_split_functor.h"
@@ -23,9 +24,28 @@ limitations under the License. */
 #include "paddle/phi/kernels/funcs/functors.h"
 #include "paddle/phi/kernels/funcs/transpose_function.cu.h"
 #include "paddle/phi/kernels/gpudnn/softmax_gpudnn.h"
+#include "paddle/phi/kernels/fusion/fused_softmax_mask_kernel.h"
+// #include "paddle/phi/kernels/fusion/gpu/fused_softmax_mask_kernel.cu"
 
 namespace paddle {
 namespace operators {
+
+template <paddle::DataType D>
+class PDTraits;
+
+template <>
+class PDTraits<paddle::DataType::FLOAT32> {
+public:
+  typedef float DataType;
+  typedef float data_t;
+};
+
+template <>
+class PDTraits<paddle::DataType::FLOAT16> {
+public:
+  typedef half DataType;
+  typedef paddle::float16 data_t;
+};
 
 class AttnDropoutParam {
  public:
@@ -417,13 +437,17 @@ class FMHARef {
     int softmax_axis = -1;
     if (src_mask_tensor != nullptr) {
       if (src_mask_out_tensor == nullptr && seq_len_ == out_seq_len) {
-        LaunchFusedSoftmaxMaskKernel<T>(qk_out_data,
-                                        src_mask_tensor->data<T>(),
-                                        softmax_out_data,
-                                        batch_size_,
-                                        num_head_,
-                                        seq_len_,
-                                        dev_ctx_.stream());
+        // if (std::is_same(T, float)) {
+        // LaunchFusedSoftmaxMaskKernel<T>(qk_out_data,
+        //                               src_mask_tensor->data<T>(),
+        //                               softmax_out_data,
+        //                               batch_size_,
+        //                               num_head_,
+        //                               seq_len_,
+        //                               dev_ctx_.stream());
+        // } else {
+        phi::fusion::FusedSoftmaxMaskKernel<T, phi::GPUContext>(dev_ctx_, *qk_out_tensor, *src_mask_tensor, softmax_out_tensor);
+        // }
       } else {
         std::vector<const phi::DenseTensor*> ins;
         std::vector<phi::DenseTensor*> outs;

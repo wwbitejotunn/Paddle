@@ -17,11 +17,12 @@
 #include "paddle/phi/core/dense_tensor.h"
 
 namespace phi {
+namespace fusion {
 
 template <typename T, typename Context>
 void FusedSoftmaxMaskKernel(const Context& dev_ctx,
                             const DenseTensor& x,
                             const DenseTensor& mask,
                             DenseTensor* out);
-
+}   // namespace fusion
 }  // namespace phi
