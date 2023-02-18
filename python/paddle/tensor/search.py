@@ -36,6 +36,26 @@ from ..framework import (
 __all__ = []
 
 
+def top_p_sampling(x, ps, max_dec_len, name=None):
+    if in_dygraph_mode():
+        return _C_ops.top_p_sampling(x, ps, max_dec_len)
+
+    inputs = {"x": [x], "ps": [ps]}
+    attrs = {}
+    attrs['max_dec_len'] = max_dec_len
+
+    helper = LayerHelper('top_p_sampling', **locals())
+    out = helper.create_variable_for_type_inference(dtype=x.dtype)
+    ids = helper.create_variable_for_type_inference(dtype="int64")
+    helper.append_op(
+        type='top_p_sampling',
+        inputs=inputs,
+        outputs={'out': [out], 'ids': [ids]},
+        attrs=attrs,
+    )
+    return out, ids
+
+
 def argsort(x, axis=-1, descending=False, name=None):
     """
     Sorts the input along the given axis, and returns the corresponding index tensor for the sorted output values. The default sort algorithm is ascending, if you want the sort algorithm to be descending, you must set the :attr:`descending` as True.

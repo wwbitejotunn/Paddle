@@ -424,6 +424,12 @@ void ValueCompareInferMeta(const MetaTensor& x,
 
 void SolveInferMeta(const MetaTensor& x, const MetaTensor& y, MetaTensor* out);
 
+void TopPSamplingInferMeta(const MetaTensor& x,
+                           const MetaTensor& ps,
+                           int max_dec_len,
+                           MetaTensor* out,
+                           MetaTensor* ids);
+
 void UnpoolInferMeta(const MetaTensor& x,
                      const MetaTensor& indices,
                      const std::vector<int>& ksize,

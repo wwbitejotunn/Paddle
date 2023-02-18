@@ -1138,3 +1138,12 @@
   kernel :
     func : where
   backward : where_grad
+
+- op : top_p_sampling
+  args : (Tensor x, Tensor ps, int max_dec_len=1)
+  output : Tensor (out), Tensor(ids)
+  infer_meta :
+    func : TopPSamplingInferMeta
+  kernel :
+    func : top_p_sampling
+    data_type : x
