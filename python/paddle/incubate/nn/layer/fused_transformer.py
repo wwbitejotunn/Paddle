@@ -1376,31 +1376,31 @@ class FusedMultiTransformer(Layer):
                 dtype=self._dtype,
                 is_bias=True,
             )
-            if self._quant_weight:
-                qkv_weight_scale = self.create_parameter(
-                    [3, num_heads, self.head_dim],
-                    attr=qkv_weight_scale_attr,
-                    dtype=self._dtype,
-                    is_bias=False,
-                )
-                linear_weight_scale = self.create_parameter(
-                    shape=[embed_dim],
-                    attr=linear_weight_scale_attr,
-                    dtype=self._dtype,
-                    is_bias=False,
-                )
-                ffn1_weight_scale = self.create_parameter(
-                    shape=[dim_feedforward],
-                    attr=ffn1_weight_scale_attr,
-                    dtype=self._dtype,
-                    is_bias=False,
-                )
-                ffn2_weight_scale = self.create_parameter(
-                    shape=[embed_dim],
-                    attr=ffn2_weight_scale_attr,
-                    dtype=self._dtype,
-                    is_bias=False,
-                )
+            # if self._quant_weight:
+            qkv_weight_scale = self.create_parameter(
+                [3, num_heads, self.head_dim],
+                attr=qkv_weight_scale_attr,
+                dtype=self._dtype,
+                is_bias=False,
+            )
+            linear_weight_scale = self.create_parameter(
+                shape=[embed_dim],
+                attr=linear_weight_scale_attr,
+                dtype=self._dtype,
+                is_bias=False,
+            )
+            ffn1_weight_scale = self.create_parameter(
+                shape=[dim_feedforward],
+                attr=ffn1_weight_scale_attr,
+                dtype=self._dtype,
+                is_bias=False,
+            )
+            ffn2_weight_scale = self.create_parameter(
+                shape=[embed_dim],
+                attr=ffn2_weight_scale_attr,
+                dtype=self._dtype,
+                is_bias=False,
+            )
             # tensor model parallel
             if nranks > 1:
                 # column parallel
@@ -1413,12 +1413,11 @@ class FusedMultiTransformer(Layer):
                 _set_var_distributed(linear_weight)
                 _set_var_distributed(ffn2_weight)
                 # scale
-                if self._quant_weight:
-                    _set_var_distributed(qkv_weight_scale)
-                    _set_var_distributed(ffn1_weight_scale)
-                    _set_var_distributed(linear_weight_scale)
-                    _set_var_distributed(ffn2_weight_scale)
-
+                # if self._quant_weight:
+                _set_var_distributed(qkv_weight_scale)
+                _set_var_distributed(ffn1_weight_scale)
+                _set_var_distributed(linear_weight_scale)
+                _set_var_distributed(ffn2_weight_scale)
 
             self.ln_scales.append(ln_scale)
             self.ln_biases.append(ln_bias)
@@ -1433,11 +1432,11 @@ class FusedMultiTransformer(Layer):
             self.ffn1_biases.append(ffn1_bias)
             self.ffn2_weights.append(ffn2_weight)
             self.ffn2_biases.append(ffn2_bias)
-            if self._quant_weight:
-                self.qkv_weights_scales.append(qkv_weight_scale)
-                self.linear_weights_scales.append(linear_weight_scale)
-                self.ffn1_weights_scales.append(ffn1_weight_scale)
-                self.ffn2_weights_scales.append(ffn2_weight_scale)
+            # if self._quant_weight:
+            self.qkv_weights_scales.append(qkv_weight_scale)
+            self.linear_weights_scales.append(linear_weight_scale)
+            self.ffn1_weights_scales.append(ffn1_weight_scale)
+            self.ffn2_weights_scales.append(ffn2_weight_scale)
         self.dropout_rate = dropout_rate
         self.activation = activation
         self.name = name

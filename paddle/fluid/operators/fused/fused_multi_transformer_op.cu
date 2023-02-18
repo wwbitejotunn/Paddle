@@ -108,9 +108,12 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
     // x: qkv's input [batch_size, seq_len, dim_embed]
     // y: qkv's weight: [3, num_head, dim_head, dim_embed]
     auto qkv_weights = ctx.MultiInput<phi::DenseTensor>("QKVW");
+    VLOG(1)<<"qkv_weights[0]"<<*(qkv_weights[0]);
     auto qkv_biases = ctx.MultiInput<phi::DenseTensor>("QKVBias");
     auto qkv_weights_scales = ctx.MultiInput<phi::DenseTensor>("QKVWScale");
-
+    if(qkv_weights_scales.size()>=0){
+      VLOG(3)<<"qkv_weight_scale[0]"<<*(qkv_weights_scales[0]);
+    }
     const bool trans_qkvw = ctx.Attr<bool>("trans_qkvw");
     const auto qkv_w_dims = qkv_weights[0]->dims();
     int num_head = trans_qkvw ? qkv_w_dims[1] : qkv_w_dims[2];
@@ -278,11 +281,10 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
     auto ffn2_weights_scales = ctx.MultiInput<phi::DenseTensor>("FFN2WeightScale");
     auto ffn2_biases = ctx.MultiInput<phi::DenseTensor>("FFN2Bias");
 
-    auto ffn2_linear_bias_residual = CublasFusedMLP<T>(dev_ctx);
-    ffn2_linear_bias_residual.Setup(
-        ffn1_out.dims(), ffn2_weights[0]->dims(), false, false);
+    auto ffn2_linear_compute = AttnMatMul<T>(
+        dev_ctx, false, false, bsz_seq, dim_embed, dim_ffn, false);
 
-    // 8. ffn2 Layernorm
+    // 8. ffn2 Layernorm residual bias
     DropoutParam ffn2_dropout_param(true, 0, true, true, 0.0, nullptr, 0);
     FusedDropoutLayerNormHelper<T, uint8_t> ffn2_fused_dropout_helper(
         dev_ctx, token_num, dim_embed, ffn2_dropout_param, epsilon);
@@ -714,12 +716,8 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
             dev_ctx.stream()
           );
         } else {
-          ffn2_linear_bias_residual.ComputeForward(&ffn1_out,
-                                                  ffn2_weights[i],
-                                                  ffn2_biases[i],
-                                                  &bias_dropout_residual_out,
-                                                  buf1,
-                                                  "none");
+          ffn2_linear_compute.ComputeForward(
+              ffn2_weights[i], &ffn1_out, nullptr, buf1, nullptr);
         }
       } else {
         if(quant_weight){
@@ -738,8 +736,8 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
             dev_ctx.stream()
           );
         } else {
-          ffn2_linear_bias_residual.ComputeForward(
-              &ffn1_out, ffn2_weights[i], ffn2_biases[i], buf1, buf0, "none");
+          ffn2_linear_compute.ComputeForward(
+              ffn2_weights[i], &ffn1_out, nullptr, buf0, nullptr);
         }
       }
 
@@ -762,24 +760,42 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
         if (i < layers - 1) {
           auto *ln_scale_data = ln_scales[i + 1]->data<U>();
           auto *ln_bias_data = ln_biases[i + 1]->data<U>();
-          ffn2_fused_dropout_helper.LayerNorm(dev_ctx,
-                                              buf1->data<T>(),
-                                              ln_scale_data,
-                                              ln_bias_data,
-                                              buf0->data<T>(),
-                                              ln_mean_data,
-                                              ln_var_data);
+          ffn2_fused_dropout_helper.LayernormResidualDropoutBias(
+              dev_ctx,
+              buf1->data<T>(),
+              bias_dropout_residual_out_data,
+              ffn2_biases[i]->data<T>(),
+              ln_scale_data,
+              ln_bias_data,
+              buf1->data<T>(),
+              dropout_mask_out_data,
+              buf0->data<T>(),
+              ln_mean_data,
+              ln_var_data);
+        } else {
+          ffn2_fused_dropout_helper.ResidualDropoutBias(
+              dev_ctx,
+              buf1->data<T>(),
+              bias_dropout_residual_out_data,
+              ffn2_biases[i]->data<T>(),
+              buf1->data<T>(),
+              dropout_mask_out_data);
         }
       } else {
         auto *ln_scale_data = ffn_ln_scales[i]->data<U>();
         auto *ln_bias_data = ffn_ln_biases[i]->data<U>();
-        ffn2_fused_dropout_helper.LayerNorm(dev_ctx,
-                                            buf0->data<T>(),
-                                            ln_scale_data,
-                                            ln_bias_data,
-                                            buf1->data<T>(),
-                                            ln_mean_data,
-                                            ln_var_data);
+        ffn2_fused_dropout_helper.LayernormResidualDropoutBias(
+            dev_ctx,
+            buf0->data<T>(),
+            buf1->data<T>(),
+            ffn2_biases[i]->data<T>(),
+            ln_scale_data,
+            ln_bias_data,
+            buf0->data<T>(),
+            dropout_mask_out_data,
+            buf1->data<T>(),
+            ln_mean_data,
+            ln_var_data);
       }
 
 #ifdef _DEBUG_FUSED_MULTI_TRANSFORMER

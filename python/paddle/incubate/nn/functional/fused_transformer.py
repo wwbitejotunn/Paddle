@@ -841,10 +841,10 @@ def fused_multi_transformer(
     ffn1_biases,
     ffn2_weights,
     ffn2_biases,
-    qkv_weight_scale_attrs=None,
-    linear_weight_scale_attrs=None,
-    ffn1_weight_scale_attrs=None,
-    ffn2_weight_scale_attrs=None,
+    qkv_weights_scales,
+    linear_weights_scales,
+    ffn1_weights_scales,
+    ffn2_weights_scales,
     pre_layer_norm=True,
     epsilon=1e-05,
     cache_kvs=None,
@@ -1030,16 +1030,10 @@ def fused_multi_transformer(
             ffn1_biases,
             ffn2_weights,
             ffn2_biases,
-            'qkv_weights_scales',
             qkv_weights_scales,
-            'linear_weights_scales',
             linear_weights_scales,
-            'ffn1_weights_scales',
             ffn1_weights_scales,
-            'ffn2_weights_scales',
             ffn2_weights_scales,
-            'cache_kvs',
-            cache_kvs,
             'pre_layer_norm',
             pre_layer_norm,
             'epsilon',
@@ -1081,7 +1075,6 @@ def fused_multi_transformer(
         inputs['LnScale'] = ln_scales
         inputs['LnBias'] = ln_biases
         inputs['QKVW'] = qkv_weights
-        print("@@@ quant weight:",quant_weight)
         if quant_weight:
             inputs['QKVWScale'] = qkv_weights_scales
             inputs['OutLinearWScale'] = linear_weights_scales

@@ -188,7 +188,6 @@ class FusedMultiTransformerOpOpMaker
     AddInput("OutLinearBias", "The out_linear bias tensor.")
         .AsDispensable()
         .AsDuplicable();
-
     AddInput("FFNLnScale", "The layer_norm scale of FusedFeedForward op")
         .AsDuplicable();
     AddInput("FFNLnBias", "The layer_norm bias of FusedFeedForward op")
@@ -203,28 +202,22 @@ class FusedMultiTransformerOpOpMaker
     AddInput("FFN2Bias", "The linear2 bias input of FusedFeedForward op")
         .AsDispensable()
         .AsDuplicable();
-
-    AddInput("QKVWScale",
-             "QKVWScale")        
+    AddInput("QKVWScale", "QKVWScale")        
         .AsDispensable()
         .AsDuplicable();
-    AddInput("OutLinearWScale",
-             "OutLinearWScale")        
+    AddInput("OutLinearWScale", "OutLinearWScale")        
         .AsDispensable()
         .AsDuplicable();
-    AddInput("FFN1WeightScale",
-             "FFN1WeightScale")        
+    AddInput("FFN1WeightScale", "FFN1WeightScale")        
         .AsDispensable()
         .AsDuplicable();
-    AddInput("FFN2WeightScale",
-             "FFN2WeightScale")        
+    AddInput("FFN2WeightScale", "FFN2WeightScale")        
         .AsDispensable()
         .AsDuplicable();
     AddOutput("CacheKVOut", "The updated cache KV. Inplace with CacheKV")
         .AsDispensable()
         .AsDuplicable();
     AddOutput("Out", "Result after multi .");
-
     AddAttr<bool>("pre_layer_norm",
                   "if true, the attention op uses pre_layer_norm architecure, "
                   "else, uses post_layer_norm architecuture. "
