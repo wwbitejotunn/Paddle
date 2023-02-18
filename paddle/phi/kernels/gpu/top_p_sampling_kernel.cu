@@ -571,8 +571,8 @@ void TopPSamplingKernel(const Context& dev_ctx,
   dev_ctx.template Alloc<int>(&count_iter_begin);
   SetCountIter<<<1, 256, 0, cu_stream>>>(count_iter.data<int>(), bs + 1);
 
-  constexpr int TopKMaxLength = 1;
-  constexpr int TopPBeamTopK = 1;
+  constexpr int TopKMaxLength = 2;
+  constexpr int TopPBeamTopK = 10;
   switch (BlockSize) {
     FIXED_BLOCK_DIM(
         KeMatrixTopPBeamTopK<T, TopKMaxLength, TopPBeamTopK, kBlockDim>
