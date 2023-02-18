@@ -107,9 +107,12 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
     // x: qkv's input [batch_size, seq_len, dim_embed]
     // y: qkv's weight: [3, num_head, dim_head, dim_embed]
     auto qkv_weights = ctx.MultiInput<phi::DenseTensor>("QKVW");
+    VLOG(1)<<"qkv_weights[0]"<<*(qkv_weights[0]);
     auto qkv_biases = ctx.MultiInput<phi::DenseTensor>("QKVBias");
     auto qkv_weights_scales = ctx.MultiInput<phi::DenseTensor>("QKVWScale");
-
+    if(qkv_weights_scales.size()>=0){
+      VLOG(3)<<"qkv_weight_scale[0]"<<*(qkv_weights_scales[0]);
+    }
     const bool trans_qkvw = ctx.Attr<bool>("trans_qkvw");
     const auto qkv_w_dims = qkv_weights[0]->dims();
     int num_head = trans_qkvw ? qkv_w_dims[1] : qkv_w_dims[2];
@@ -284,7 +287,8 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
     // auto ffn2_linear_compute = AttnMatMulV2<T>(
     //     dev_ctx, false, false, token_num, dim_embed, dim_ffn, false);
 
-    // 8. ffn2 Layernorm
+
+    // 8. ffn2 Layernorm residual bias
     DropoutParam ffn2_dropout_param(true, 0, true, true, 0.0, nullptr, 0);
     FusedDropoutLayerNormHelper<T, uint8_t> ffn2_fused_dropout_helper(
         dev_ctx, token_num, dim_embed, ffn2_dropout_param, epsilon);
@@ -716,12 +720,8 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
             dev_ctx.stream()
           );
         } else {
-          ffn2_linear_bias_residual.ComputeForward(&ffn1_out,
-                                                  ffn2_weights[i],
-                                                  ffn2_biases[i],
-                                                  &bias_dropout_residual_out,
-                                                  buf1,
-                                                  "none");
+          ffn2_linear_compute.ComputeForward(
+              ffn2_weights[i], &ffn1_out, nullptr, buf1, nullptr);
         }
       } else {
         if(quant_weight){
@@ -740,8 +740,8 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
             dev_ctx.stream()
           );
         } else {
-          ffn2_linear_bias_residual.ComputeForward(
-              &ffn1_out, ffn2_weights[i], ffn2_biases[i], buf1, buf0, "none");
+          ffn2_linear_compute.ComputeForward(
+              ffn2_weights[i], &ffn1_out, nullptr, buf0, nullptr);
         }
       }
 
