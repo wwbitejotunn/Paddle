@@ -18,7 +18,7 @@ template class CutlassFpAIntBGemmRunner<half, int8_t>;
 
 namespace paddle {
 namespace operators {
-
+#define _DEBUG_FUSED_MULTI_TRANSFORMER
 // cublaslt ffn operation have accuracy problem 
 #if CUDA_VERSION >= 13000  // Use cublasLt to fuse FFN operation.
 
@@ -111,7 +111,7 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
     VLOG(1)<<"qkv_weights[0]"<<*(qkv_weights[0]);
     auto qkv_biases = ctx.MultiInput<phi::DenseTensor>("QKVBias");
     auto qkv_weights_scales = ctx.MultiInput<phi::DenseTensor>("QKVWScale");
-    if(qkv_weights_scales.size()>=0){
+    if(qkv_weights_scales.size()>0){
       VLOG(3)<<"qkv_weight_scale[0]"<<*(qkv_weights_scales[0]);
     }
     const bool trans_qkvw = ctx.Attr<bool>("trans_qkvw");
@@ -920,10 +920,10 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
     // x: qkv's input [batch_size, seq_len, dim_embed]
     // y: qkv's weight: [3, num_head, dim_head, dim_embed]
     auto qkv_weights = ctx.MultiInput<phi::DenseTensor>("QKVW");
-    VLOG(1)<<"qkv_weights[0]"<<*(qkv_weights[0]);
     auto qkv_biases = ctx.MultiInput<phi::DenseTensor>("QKVBias");
     auto qkv_weights_scales = ctx.MultiInput<phi::DenseTensor>("QKVWScale");
-    if(qkv_weights_scales.size()>=0){
+    if(qkv_weights_scales.size()>0){
+      VLOG(3)<<"qkv_weights[0]"<<*(qkv_weights[0]);
       VLOG(3)<<"qkv_weight_scale[0]"<<*(qkv_weights_scales[0]);
     }
     const bool trans_qkvw = ctx.Attr<bool>("trans_qkvw");
@@ -1191,8 +1191,9 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
       if (!pre_layer_norm && i == 0) {
         const phi::DenseTensor *tmp_input_x =
             (encoder_remove_padding) ? &x_remove_padding : input_x;
-        VLOG(1)<<"@@@ qkv gemm, mnk:"<<token_num<<","<<output_size<<","<<input_size;
+        VLOG(1)<<"@@@ !pre_layer_norm&&i==0, qkv gemm, mnk:"<<token_num<<","<<output_size<<","<<input_size;
         if(quant_weight){
+          VLOG(1)<<"@@@ quant weight qkv gemm";
           mixed_gemm_runner.gemm(
             reinterpret_cast<const half *>(tmp_input_x->data<T>()),
             reinterpret_cast<const int8_t*>(qkv_weights[i]->data<int8_t>()),
@@ -1210,8 +1211,10 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
             qkv_weights[i], tmp_input_x, bias, &qkv_out, &qkv_out);
         }
       } else {
-            VLOG(1)<<"@@@ qkv gemm, mnk:"<<token_num<<","<<output_size<<","<<input_size;
+        VLOG(1)<<"@@@ pre_layer_norm||i!=0, qkv gemm, mnk:"<<token_num<<","<<output_size<<","<<input_size;
+        VLOG(1)<<"@@@ qkv gemm, mnk:"<<token_num<<","<<output_size<<","<<input_size;
         if(quant_weight){
+          VLOG(1)<<"@@@ quant weight qkv gemm";
           mixed_gemm_runner.gemm(
             reinterpret_cast<const half*>(buf1->data<T>()),
             reinterpret_cast<const int8_t*>(qkv_weights[i]->data<int8_t>()),
@@ -1225,9 +1228,13 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
             dev_ctx.stream()
           );
         } else {
+            VLOG(1)<<"@@@ qkv_compute.ComputeForward";
             qkv_compute.ComputeForward(
                 qkv_weights[i], buf1, bias, &qkv_out, &qkv_out);
         }
+      }
+      if(i==0){
+        VLOG(1)<<"@@ after qkv gemm:"<<qkv_out;
       }
 #ifdef _DEBUG_FUSED_MULTI_TRANSFORMER
       VLOG(0) << "step2";
@@ -1382,7 +1389,10 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
                     seq_len,
                     dim_head);
         }
-
+        VLOG(1)<<"before fmha";
+        // cudaDeviceSynchronize();
+        // PADDLE_THROW(paddle::platform::errors::Fatal(
+        //     "Paddle debuge throw"));
         phi::DenseTensor *tmp_padding_offset_tensor =
             encoder_remove_padding ? &padding_offset_tensor : nullptr;
         fmha_compute.ComputeForwardWithoutTranspose(cache_kv,
@@ -1404,7 +1414,8 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
       VLOG(0) << "step3";
 #endif
       VLOG(1)<<"@@@ out_linear gemm, mnk:"<<token_num<<","<<dim_embed<<","<<hidden_size;
-      if (pre_layer_norm) {        if(quant_weight){
+      if (pre_layer_norm) {        
+        if(quant_weight){
           mixed_gemm_runner.gemm(
             reinterpret_cast<const half*>(fmha_out_data),
             reinterpret_cast<const int8_t*>(out_linear_weights[i]->data<int8_t>()),
