@@ -58,7 +58,7 @@ void generic_mixed_gemm_kernelLauncher(const T*          A,
     static_assert(cutlass::platform::is_same<T, half>::value || cutlass::platform::is_same<T, float>::value,
                   "Specialized for half, float");
     static_assert(cutlass::platform::is_same<T, WeightType>::value
-                      || cutlass::platform::is_same<WeightType, int8_t>::value
+                      || cutlass::platform::is_same<WeightType, uint8_t>::value
                       || cutlass::platform::is_same<WeightType, cutlass::uint4b_t>::value,
                   "");
 

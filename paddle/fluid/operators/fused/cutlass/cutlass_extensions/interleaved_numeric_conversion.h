@@ -51,9 +51,9 @@ struct FastInterleavedAndBiasedNumericArrayConverter {
 };
 
 template<>
-struct FastInterleavedAndBiasedNumericArrayConverter<half_t, int8_t, 4> {
+struct FastInterleavedAndBiasedNumericArrayConverter<half_t, uint8_t, 4> {
     using result_type = Array<half_t, 4>;
-    using source_type = Array<int8_t, 4>;
+    using source_type = Array<uint8_t, 4>;
 
     CUTLASS_DEVICE
     static result_type convert(source_type const& source)
@@ -85,12 +85,12 @@ struct FastInterleavedAndBiasedNumericArrayConverter<half_t, int8_t, 4> {
 };
 
 template<int N>
-struct FastInterleavedAndBiasedNumericArrayConverter<half_t, int8_t, N> {
+struct FastInterleavedAndBiasedNumericArrayConverter<half_t, uint8_t, N> {
     static constexpr int VEC_WIDTH = 4;
     static_assert(!(N % VEC_WIDTH), "N must be multiple of 4.");
 
     using result_type = Array<half_t, N>;
-    using source_type = Array<int8_t, N>;
+    using source_type = Array<uint8_t, N>;
 
     CUTLASS_DEVICE
     static result_type convert(source_type const& source)
@@ -123,9 +123,9 @@ struct FastInterleavedAndBiasedNumericArrayConverter<half_t, int8_t, N> {
 };
 
 template<>
-struct FastInterleavedAndBiasedNumericArrayConverter<bfloat16_t, int8_t, 4> {
+struct FastInterleavedAndBiasedNumericArrayConverter<bfloat16_t, uint8_t, 4> {
     using result_type = Array<bfloat16_t, 4>;
-    using source_type = Array<int8_t, 4>;
+    using source_type = Array<uint8_t, 4>;
 
     CUTLASS_DEVICE
     static result_type convert(source_type const& source)
@@ -175,12 +175,12 @@ struct FastInterleavedAndBiasedNumericArrayConverter<bfloat16_t, int8_t, 4> {
 };
 
 template<int N>
-struct FastInterleavedAndBiasedNumericArrayConverter<bfloat16_t, int8_t, N> {
+struct FastInterleavedAndBiasedNumericArrayConverter<bfloat16_t, uint8_t, N> {
     static constexpr int VEC_WIDTH = 4;
     static_assert(!(N % VEC_WIDTH), "N must be multiple of 4.");
 
     using result_type = Array<bfloat16_t, N>;
-    using source_type = Array<int8_t, N>;
+    using source_type = Array<uint8_t, N>;
 
     CUTLASS_DEVICE
     static result_type convert(source_type const& source)
