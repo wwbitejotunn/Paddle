@@ -17,5 +17,5 @@
 #include "paddle/fluid/operators/fused/cutlass/fpA_intB_gemm/fpA_intB_gemm_template.h"
 
 namespace fastertransformer {
-template class CutlassFpAIntBGemmRunner<half, int8_t>;
+template class CutlassFpAIntBGemmRunner<half, uint8_t>;
 }  // namespace fastertransformer

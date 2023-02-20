@@ -57,16 +57,16 @@ struct LayoutDetailsB<bfloat16_t, Arch, typename platform::enable_if<Arch::kMinC
 // Specializations for Turing+ when B is quantized. These can use the operator OpMultiplyAddDequantizeInterleavedBToA,
 // which signals that we want to dequantize after loading from smem.
 template<typename Arch>
-struct LayoutDetailsB<int8_t, Arch, typename platform::enable_if<Arch::kMinComputeCapability >= 75>::type> {
+struct LayoutDetailsB<uint8_t, Arch, typename platform::enable_if<Arch::kMinComputeCapability >= 75>::type> {
     static constexpr int ThreadblockK = 64;
 
 private:
-    static constexpr int ElementsPerCacheLine = 128 * 8 / sizeof_bits<int8_t>::value;
+    static constexpr int ElementsPerCacheLine = 128 * 8 / sizeof_bits<uint8_t>::value;
     static constexpr int ColumnsInterleaved   = ElementsPerCacheLine / ThreadblockK;
 
 public:
     using Layout                           = layout::ColumnMajorTileInterleave<ThreadblockK, ColumnsInterleaved>;
-    static constexpr int ElementsPerAccess = 128 / cutlass::sizeof_bits<int8_t>::value;
+    static constexpr int ElementsPerAccess = 128 / cutlass::sizeof_bits<uint8_t>::value;
     using Operator                         = cutlass::arch::OpMultiplyAddDequantizeInterleavedBToA;
 };
 

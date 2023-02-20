@@ -73,7 +73,7 @@ struct DqMma<ElementA,
     static_assert(platform::is_same<ElementA, half_t>::value || platform::is_same<ElementA, bfloat16_t>::value,
                   "Element A must be fp16 or bf16");
 
-    static_assert(platform::is_same<ElementB, int8_t>::value || platform::is_same<ElementB, uint4b_t>::value,
+    static_assert(platform::is_same<ElementB, uint8_t>::value || platform::is_same<ElementB, uint4b_t>::value,
                   "Element B must be int8 or uint4");
 
     static constexpr bool DqAfterLDG        = platform::is_same<arch::OpMultiplyAdd, Operator>::value;
@@ -215,7 +215,7 @@ struct DqMma<ElementA,
     static_assert(platform::is_same<ElementA, half_t>::value || platform::is_same<ElementA, bfloat16_t>::value,
                   "Element A must be fp16 or bf16");
 
-    static_assert(platform::is_same<ElementB, int8_t>::value || platform::is_same<ElementB, uint4b_t>::value,
+    static_assert(platform::is_same<ElementB, uint8_t>::value || platform::is_same<ElementB, uint4b_t>::value,
                   "Element B must be int8 or uint4");
 
     static constexpr bool DqAfterLDG        = platform::is_same<arch::OpMultiplyAdd, Operator>::value;

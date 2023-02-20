@@ -80,7 +80,7 @@ struct DqMma<ElementA,
     static_assert(platform::is_same<Operator, arch::OpMultiplyAddDequantizeInterleavedBToA>::value,
                   "Mma multistage must dequantize after ldsm");
 
-    static_assert(platform::is_same<ElementB, int8_t>::value || platform::is_same<ElementB, uint4b_t>::value,
+    static_assert(platform::is_same<ElementB, uint8_t>::value || platform::is_same<ElementB, uint4b_t>::value,
                   "Element B must be int8 or uint4");
 
     static cutlass::arch::CacheOperation::Kind const CacheOpA = ((sizeof_bits<ElementA>::value * kAlignmentA) == 128) ?
@@ -237,7 +237,7 @@ struct DqMma<ElementA,
     static_assert(platform::is_same<Operator, arch::OpMultiplyAddDequantizeInterleavedBToA>::value,
                   "Mma multistage must dequantize after ldsm");
 
-    static_assert(platform::is_same<ElementB, int8_t>::value || platform::is_same<ElementB, uint4b_t>::value,
+    static_assert(platform::is_same<ElementB, uint8_t>::value || platform::is_same<ElementB, uint4b_t>::value,
                   "Element B must be uint8 or uint4");
 
     static cutlass::arch::CacheOperation::Kind const CacheOpA = ((sizeof_bits<ElementA>::value * kAlignmentA) == 128) ?

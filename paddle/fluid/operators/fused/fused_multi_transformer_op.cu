@@ -13,7 +13,7 @@ limitations under the License. */
 #include "paddle/fluid/operators/fused/cutlass/cutlass_kernels/fpA_intB_gemm/fpA_intB_gemm_template.h"
 
 namespace fastertransformer {
-template class CutlassFpAIntBGemmRunner<half, int8_t>;
+template class CutlassFpAIntBGemmRunner<half, uint8_t>;
 }  // namespace fastertransformer
 
 namespace paddle {
@@ -109,11 +109,11 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
     // x: qkv's input [batch_size, seq_len, dim_embed]
     // y: qkv's weight: [3, num_head, dim_head, dim_embed]
     auto qkv_weights = ctx.MultiInput<phi::DenseTensor>("QKVW");
-    VLOG(1)<<"qkv_weights[0]"<<*(qkv_weights[0]);
     auto qkv_biases = ctx.MultiInput<phi::DenseTensor>("QKVBias");
     auto qkv_weights_scales = ctx.MultiInput<phi::DenseTensor>("QKVWScale");
+    VLOG(1)<<"qkv_weights[0]"<<*(qkv_weights[0]);
     if(qkv_weights_scales.size()>0){
-      VLOG(3)<<"qkv_weight_scale[0]"<<*(qkv_weights_scales[0]);
+      VLOG(1)<<"qkv_weight_scale[0]"<<*(qkv_weights_scales[0]);
     }
     const bool trans_qkvw = ctx.Attr<bool>("trans_qkvw");
     const auto qkv_w_dims = qkv_weights[0]->dims();
@@ -134,7 +134,7 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
                                      output_size,
                                      input_size,
                                      /*compute_bias=*/false);
-    auto mixed_gemm_runner = fastertransformer::CutlassFpAIntBGemmRunner<half, int8_t>();
+    auto mixed_gemm_runner = fastertransformer::CutlassFpAIntBGemmRunner<half, uint8_t>();
     phi::DenseTensor qkv_out;
     qkv_out.Resize({{token_num, 3, num_head, dim_head}});
     auto *qkv_out_data =
@@ -266,7 +266,7 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
     auto ffn1_biases = ctx.MultiInput<phi::DenseTensor>("FFN1Bias");
     auto ffn1_weight_dim = ffn1_weights[0]->dims();
 
-    int dim_ffn = ffn1_weight_dim[1];
+    int dim_ffn = quant_weight? ffn1_weight_dim[0]: ffn1_weight_dim[1];
 
     auto ffn1_cublas_linear = CublasFusedMLP<T>(dev_ctx);
     const phi::DDim ffn1_input_shape({token_num, dim_embed});
@@ -378,7 +378,7 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
         if(quant_weight){
           mixed_gemm_runner.gemm(
             reinterpret_cast<const half *>(tmp_input_x->data<T>()),
-            reinterpret_cast<const int8_t*>(qkv_weights[i]->data<int8_t>()),
+            reinterpret_cast<const uint8_t*>(qkv_weights[i]->data<int8_t>()),
             reinterpret_cast<const half*>(qkv_weights_scales[i]->data<T>()),
             reinterpret_cast<half *>(qkv_out_data),
             token_num,
@@ -397,7 +397,7 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
         if(quant_weight){
           mixed_gemm_runner.gemm(
             reinterpret_cast<const half*>(buf1->data<T>()),
-            reinterpret_cast<const int8_t*>(qkv_weights[i]->data<int8_t>()),
+            reinterpret_cast<const uint8_t*>(qkv_weights[i]->data<int8_t>()),
             reinterpret_cast<const half*>(qkv_weights_scales[i]->data<T>()),
             reinterpret_cast<half*>(qkv_out_data),
             token_num,
@@ -590,7 +590,7 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
         if(quant_weight){
           mixed_gemm_runner.gemm(
             reinterpret_cast<const half*>(fmha_out_data),
-            reinterpret_cast<const int8_t*>(out_linear_weights[i]->data<int8_t>()),
+            reinterpret_cast<const uint8_t*>(out_linear_weights[i]->data<int8_t>()),
             reinterpret_cast<const half*>(out_linear_weights_scales[i]->data<T>()),
             reinterpret_cast<half*>(buf1->data<T>()),
             token_num,
@@ -609,7 +609,7 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
         if(quant_weight){
           mixed_gemm_runner.gemm(
             reinterpret_cast<const half*>(fmha_out_data),
-            reinterpret_cast<const int8_t*>(out_linear_weights[i]->data<int8_t>()),
+            reinterpret_cast<const uint8_t*>(out_linear_weights[i]->data<int8_t>()),
             reinterpret_cast<const half*>(out_linear_weights_scales[i]->data<T>()),
             reinterpret_cast<half*>(buf0->data<T>()),
             token_num, dim_embed, hidden_size,
@@ -673,7 +673,7 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
       if(quant_weight){
         mixed_gemm_runner.gemm_bias_act(
           reinterpret_cast<const half*>(buf1->data<T>()),
-          reinterpret_cast<const int8_t*>(ffn1_weights[i]->data<int8_t>()),
+          reinterpret_cast<const uint8_t*>(ffn1_weights[i]->data<int8_t>()),
           reinterpret_cast<const half*>(ffn1_weights_scales[i]->data<T>()),
           reinterpret_cast<const half*>(ffn1_biases[i]->data<T>()),
           reinterpret_cast<half*>(ffn1_out_data),
@@ -702,16 +702,14 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
       VLOG(1)<<"@@@ ffn2 gemm, mnk:"<<token_num<<","<<dim_embed<<","<<dim_ffn;
       if (pre_layer_norm) {
         if(quant_weight){
-          mixed_gemm_runner.gemm_bias_act(
+          mixed_gemm_runner.gemm(
             reinterpret_cast<const half *>(ffn1_out_data),
-            reinterpret_cast<const int8_t*>(ffn2_weights[i]->data<int8_t>()),
+            reinterpret_cast<const uint8_t*>(ffn2_weights[i]->data<int8_t>()),
             reinterpret_cast<const half*>(ffn2_weights_scales[i]->data<T>()),
-            reinterpret_cast<const half*>(ffn2_biases[i]->data<T>()),
             reinterpret_cast<half*>(buf1->data<T>()),
             token_num,
             dim_embed,
             dim_ffn,
-            "none",
             mixgemm_workspace_data,
             mixgemm_workspace_size_bytes,
             dev_ctx.stream()
@@ -722,16 +720,14 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
         }
       } else {
         if(quant_weight){
-          mixed_gemm_runner.gemm_bias_act(
+          mixed_gemm_runner.gemm(
             reinterpret_cast<const half *>(ffn1_out_data),
-            reinterpret_cast<const int8_t*>(ffn2_weights[i]->data<int8_t>()),
+            reinterpret_cast<const uint8_t*>(ffn2_weights[i]->data<int8_t>()),
             reinterpret_cast<const half*>(ffn2_weights_scales[i]->data<T>()),
-            reinterpret_cast<const half*>(ffn2_biases[i]->data<T>()),
             reinterpret_cast<half*>(buf0->data<T>()),
             token_num,
             dim_embed,
             dim_ffn,
-            "none",
             mixgemm_workspace_data,
             mixgemm_workspace_size_bytes,
             dev_ctx.stream()
@@ -918,9 +914,9 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
     auto qkv_weights = ctx.MultiInput<phi::DenseTensor>("QKVW");
     auto qkv_biases = ctx.MultiInput<phi::DenseTensor>("QKVBias");
     auto qkv_weights_scales = ctx.MultiInput<phi::DenseTensor>("QKVWScale");
+    VLOG(1)<<"qkv_weights[0]"<<*(qkv_weights[0]);
     if(qkv_weights_scales.size()>0){
-      VLOG(3)<<"qkv_weights[0]"<<*(qkv_weights[0]);
-      VLOG(3)<<"qkv_weight_scale[0]"<<*(qkv_weights_scales[0]);
+      VLOG(1)<<"qkv_weight_scale[0]"<<*(qkv_weights_scales[0]);
     }
     const bool trans_qkvw = ctx.Attr<bool>("trans_qkvw");
     const auto qkv_w_dims = qkv_weights[0]->dims();
@@ -941,7 +937,7 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
                                      output_size,
                                      input_size,
                                      /*compute_bias=*/false);
-    auto mixed_gemm_runner = fastertransformer::CutlassFpAIntBGemmRunner<half, int8_t>();
+    auto mixed_gemm_runner = fastertransformer::CutlassFpAIntBGemmRunner<half, uint8_t>();
     phi::DenseTensor qkv_out;
     qkv_out.Resize({{token_num, 3, num_head, dim_head}});
     auto *qkv_out_data =
@@ -1071,8 +1067,9 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
     auto ffn1_weights_scales = ctx.MultiInput<phi::DenseTensor>("FFN1WeightScale");
     auto ffn1_biases = ctx.MultiInput<phi::DenseTensor>("FFN1Bias");
     auto ffn1_weight_dim = ffn1_weights[0]->dims();
-
-    int dim_ffn = ffn1_weight_dim[1];
+    // if quant weight,
+    // matmul weight is transposed
+    int dim_ffn = quant_weight? ffn1_weight_dim[0]: ffn1_weight_dim[1];
     auto ffn1_linear_compute = AttnMatMul<T>(
         dev_ctx, false, false, token_num, dim_ffn, dim_embed, false);
     phi::DenseTensor ffn1_out;
@@ -1192,7 +1189,7 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
           VLOG(1)<<"@@@ quant weight qkv gemm";
           mixed_gemm_runner.gemm(
             reinterpret_cast<const half *>(tmp_input_x->data<T>()),
-            reinterpret_cast<const int8_t*>(qkv_weights[i]->data<int8_t>()),
+            reinterpret_cast<const uint8_t*>(qkv_weights[i]->data<int8_t>()),
             reinterpret_cast<const half*>(qkv_weights_scales[i]->data<T>()),
             reinterpret_cast<half *>(qkv_out_data),
             token_num,
@@ -1213,7 +1210,7 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
           VLOG(1)<<"@@@ quant weight qkv gemm";
           mixed_gemm_runner.gemm(
             reinterpret_cast<const half*>(buf1->data<T>()),
-            reinterpret_cast<const int8_t*>(qkv_weights[i]->data<int8_t>()),
+            reinterpret_cast<const uint8_t*>(qkv_weights[i]->data<int8_t>()),
             reinterpret_cast<const half*>(qkv_weights_scales[i]->data<T>()),
             reinterpret_cast<half*>(qkv_out_data),
             token_num,
@@ -1385,10 +1382,7 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
                     seq_len,
                     dim_head);
         }
-        VLOG(1)<<"before fmha";
-        // cudaDeviceSynchronize();
-        // PADDLE_THROW(paddle::platform::errors::Fatal(
-        //     "Paddle debuge throw"));
+        // VLOG(1)<<"before fmha";
         phi::DenseTensor *tmp_padding_offset_tensor =
             encoder_remove_padding ? &padding_offset_tensor : nullptr;
         fmha_compute.ComputeForwardWithoutTranspose(cache_kv,
@@ -1414,7 +1408,7 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
         if(quant_weight){
           mixed_gemm_runner.gemm(
             reinterpret_cast<const half*>(fmha_out_data),
-            reinterpret_cast<const int8_t*>(out_linear_weights[i]->data<int8_t>()),
+            reinterpret_cast<const uint8_t*>(out_linear_weights[i]->data<int8_t>()),
             reinterpret_cast<const half*>(out_linear_weights_scales[i]->data<T>()),
             reinterpret_cast<half*>(buf1->data<T>()),
             token_num,
@@ -1433,7 +1427,7 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
         if(quant_weight){
           mixed_gemm_runner.gemm(
             reinterpret_cast<const half*>(fmha_out_data),
-            reinterpret_cast<const int8_t*>(out_linear_weights[i]->data<int8_t>()),
+            reinterpret_cast<const uint8_t*>(out_linear_weights[i]->data<int8_t>()),
             reinterpret_cast<const half*>(out_linear_weights_scales[i]->data<T>()),
             reinterpret_cast<half*>(buf0->data<T>()),
             token_num, dim_embed, hidden_size,
@@ -1447,6 +1441,9 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
         }
         AllReduce<T>(*buf0, ring_id, buf0->numel(), dev_ctx);
       }
+      cudaDeviceSynchronize();
+      PADDLE_THROW(paddle::platform::errors::Fatal(
+          "Paddle debuge throw"));
 #ifdef _DEBUG_FUSED_MULTI_TRANSFORMER
       VLOG(0) << "step4";
 #endif
@@ -1497,7 +1494,7 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
       if(quant_weight){
         mixed_gemm_runner.gemm_bias_act(
           reinterpret_cast<const half*>(buf1->data<T>()),
-          reinterpret_cast<const int8_t*>(ffn1_weights[i]->data<int8_t>()),
+          reinterpret_cast<const uint8_t*>(ffn1_weights[i]->data<int8_t>()),
           reinterpret_cast<const half*>(ffn1_weights_scales[i]->data<T>()),
           reinterpret_cast<const half*>(ffn1_biases[i]->data<T>()),
           reinterpret_cast<half*>(ffn1_out_data),
@@ -1528,19 +1525,18 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
                                                 ffn1_dropout_out_data,
                                                 ffn1_dropout_mask_data);
       }
-      // step8. ffn matmul2
+      // step8. ffn2 matmul
+      VLOG(1)<<"@@@ ffn2 gemm, mnk:"<<token_num<<","<<dim_embed<<","<<dim_ffn;
       if (pre_layer_norm) {
                 if(quant_weight){
-          mixed_gemm_runner.gemm_bias_act(
+          mixed_gemm_runner.gemm(
             reinterpret_cast<const half *>(ffn1_out_data),
-            reinterpret_cast<const int8_t*>(ffn2_weights[i]->data<int8_t>()),
+            reinterpret_cast<const uint8_t*>(ffn2_weights[i]->data<int8_t>()),
             reinterpret_cast<const half*>(ffn2_weights_scales[i]->data<T>()),
-            reinterpret_cast<const half*>(ffn2_biases[i]->data<T>()),
             reinterpret_cast<half*>(buf1->data<T>()),
             token_num,
             dim_embed,
             dim_ffn,
-            "none",
             mixgemm_workspace_data,
             mixgemm_workspace_size_bytes,
             dev_ctx.stream()
@@ -1551,16 +1547,14 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
         }
       } else {
         if(quant_weight){
-          mixed_gemm_runner.gemm_bias_act(
+          mixed_gemm_runner.gemm(
             reinterpret_cast<const half *>(ffn1_out_data),
-            reinterpret_cast<const int8_t*>(ffn2_weights[i]->data<int8_t>()),
+            reinterpret_cast<const uint8_t*>(ffn2_weights[i]->data<int8_t>()),
             reinterpret_cast<const half*>(ffn2_weights_scales[i]->data<T>()),
-            reinterpret_cast<const half*>(ffn2_biases[i]->data<T>()),
             reinterpret_cast<half*>(buf0->data<T>()),
             token_num,
             dim_embed,
             dim_ffn,
-            "none",
             mixgemm_workspace_data,
             mixgemm_workspace_size_bytes,
             dev_ctx.stream()
