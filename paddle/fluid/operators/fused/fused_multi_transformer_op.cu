@@ -18,9 +18,8 @@ template class CutlassFpAIntBGemmRunner<half, uint8_t>;
 
 namespace paddle {
 namespace operators {
-#define _DEBUG_FUSED_MULTI_TRANSFORMER
 // cublaslt ffn operation have accuracy problem 
-#if CUDA_VERSION >= 13000  // Use cublasLt to fuse FFN operation.
+#if CUDA_VERSION >= 11060  // Use cublasLt to fuse FFN operation.
 
 template <typename T>
 class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
@@ -85,9 +84,9 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
       quant_weight=false;
     }
     if(quant_weight){
-      VLOG(1)<<"@@@ debug fused_multi_transformer, quant_weight==true";
+      VLOG(5)<<"Doing debug fused_multi_transformer, quant_weight==true";
     } else {
-      VLOG(1)<<"@@@ debug fused_multi_transformer, quant_weight==false";
+      VLOG(5)<<"Doing debug fused_multi_transformer, quant_weight==false";
     }
 
     // 1. layer norm
@@ -110,10 +109,11 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
     auto qkv_weights = ctx.MultiInput<phi::DenseTensor>("QKVW");
     auto qkv_biases = ctx.MultiInput<phi::DenseTensor>("QKVBias");
     auto qkv_weights_scales = ctx.MultiInput<phi::DenseTensor>("QKVWScale");
-    VLOG(1)<<"qkv_weights[0]"<<*(qkv_weights[0]);
-    if(qkv_weights_scales.size()>0){
-      VLOG(1)<<"qkv_weight_scale[0]"<<*(qkv_weights_scales[0]);
-    }
+    // debug quant qkv 
+    // VLOG(1)<<"qkv_weights[0]"<<*(qkv_weights[0]);
+    // if(qkv_weights_scales.size()>0){
+      // VLOG(1)<<"qkv_weight_scale[0]"<<*(qkv_weights_scales[0]);
+    // }
     const bool trans_qkvw = ctx.Attr<bool>("trans_qkvw");
     const auto qkv_w_dims = qkv_weights[0]->dims();
     int num_head = trans_qkvw ? qkv_w_dims[1] : qkv_w_dims[2];
@@ -378,7 +378,7 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
       if (!pre_layer_norm && i == 0) {
         const phi::DenseTensor *tmp_input_x =
             (encoder_remove_padding) ? &x_remove_padding : input_x;
-        VLOG(1)<<"@@@ qkv gemm, mnk:"<<token_num<<","<<output_size<<","<<input_size;
+        VLOG(5)<<"Doing qkv gemm, mnk:"<<token_num<<","<<output_size<<","<<input_size;
         if(quant_weight){
           mixed_gemm_runner.gemm(
             reinterpret_cast<const half *>(tmp_input_x->data<T>()),
@@ -397,7 +397,7 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
               qkv_weights[i], tmp_input_x, bias, &qkv_out, &qkv_out);
         }
       } else {
-        VLOG(1)<<"@@@ qkv gemm, mnk:"<<token_num<<","<<output_size<<","<<input_size;
+        VLOG(5)<<"Doing qkv gemm, mnk:"<<token_num<<","<<output_size<<","<<input_size;
         if(quant_weight){
           mixed_gemm_runner.gemm(
             reinterpret_cast<const half*>(buf1->data<T>()),
@@ -589,7 +589,7 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
 #ifdef _DEBUG_FUSED_MULTI_TRANSFORMER
       VLOG(0) << "step3";
 #endif
-      VLOG(1)<<"@@@ out_linear gemm, mnk:"<<token_num<<","<<dim_embed<<","<<hidden_size;
+      VLOG(5)<<"Doing out_linear gemm, mnk:"<<token_num<<","<<dim_embed<<","<<hidden_size;
       if (pre_layer_norm) {
         if(quant_weight){
           mixed_gemm_runner.gemm(
@@ -673,7 +673,7 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
 #endif
 
       // step6. ffn matmul1
-      VLOG(1)<<"@@@ ffn1 gemm, mnk:"<<token_num<<","<<dim_ffn<<","<<dim_embed;
+      VLOG(5)<<"Doing ffn1 gemm, mnk:"<<token_num<<","<<dim_ffn<<","<<dim_embed;
       if(quant_weight){
         mixed_gemm_runner.gemm_bias_act(
           reinterpret_cast<const half*>(buf1->data<T>()),
@@ -703,7 +703,7 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
 #endif
 
       // step7. ffn2 matmul
-      VLOG(1)<<"@@@ ffn2 gemm, mnk:"<<token_num<<","<<dim_embed<<","<<dim_ffn;
+      VLOG(5)<<"Doing ffn2 gemm, mnk:"<<token_num<<","<<dim_embed<<","<<dim_ffn;
       if (pre_layer_norm) {
         if(quant_weight){
           mixed_gemm_runner.gemm(
@@ -893,9 +893,9 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
       quant_weight=false;
     }
     if(quant_weight){
-      VLOG(1)<<"@@@ debug fused_multi_transformer, quant_weight==true";
+      VLOG(5)<<"Doing debug fused_multi_transformer, quant_weight==true";
     } else {
-      VLOG(1)<<"@@@ debug fused_multi_transformer, quant_weight==false";
+      VLOG(5)<<"Doing debug fused_multi_transformer, quant_weight==false";
     }
 
     // 1. layer norm
@@ -918,10 +918,11 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
     auto qkv_weights = ctx.MultiInput<phi::DenseTensor>("QKVW");
     auto qkv_biases = ctx.MultiInput<phi::DenseTensor>("QKVBias");
     auto qkv_weights_scales = ctx.MultiInput<phi::DenseTensor>("QKVWScale");
-    VLOG(1)<<"qkv_weights[0]"<<*(qkv_weights[0]);
-    if(qkv_weights_scales.size()>0){
-      VLOG(1)<<"qkv_weight_scale[0]"<<*(qkv_weights_scales[0]);
-    }
+    // debug quant qkv 
+    // VLOG(1)<<"qkv_weights[0]"<<*(qkv_weights[0]);
+    // if(qkv_weights_scales.size()>0){
+    //   VLOG(1)<<"qkv_weight_scale[0]"<<*(qkv_weights_scales[0]);
+    // }
     const bool trans_qkvw = ctx.Attr<bool>("trans_qkvw");
     const auto qkv_w_dims = qkv_weights[0]->dims();
     int num_head = trans_qkvw ? qkv_w_dims[1] : qkv_w_dims[2];
@@ -1188,9 +1189,9 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
       if (!pre_layer_norm && i == 0) {
         const phi::DenseTensor *tmp_input_x =
             (encoder_remove_padding) ? &x_remove_padding : input_x;
-        VLOG(1)<<"@@@ !pre_layer_norm&&i==0, qkv gemm, mnk:"<<token_num<<","<<output_size<<","<<input_size;
+        VLOG(5)<<"Doing !pre_layer_norm&&i==0, qkv gemm, mnk:"<<token_num<<","<<output_size<<","<<input_size;
         if(quant_weight){
-          VLOG(1)<<"@@@ quant weight qkv gemm";
+          VLOG(5)<<"Doing quant weight qkv gemm";
           mixed_gemm_runner.gemm(
             reinterpret_cast<const half *>(tmp_input_x->data<T>()),
             reinterpret_cast<const uint8_t*>(qkv_weights[i]->data<int8_t>()),
@@ -1208,10 +1209,10 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
             qkv_weights[i], tmp_input_x, bias, &qkv_out, &qkv_out);
         }
       } else {
-        VLOG(1)<<"@@@ pre_layer_norm||i!=0, qkv gemm, mnk:"<<token_num<<","<<output_size<<","<<input_size;
-        VLOG(1)<<"@@@ qkv gemm, mnk:"<<token_num<<","<<output_size<<","<<input_size;
+        VLOG(5)<<"Doing pre_layer_norm||i!=0, qkv gemm, mnk:"<<token_num<<","<<output_size<<","<<input_size;
+        VLOG(5)<<"Doing qkv gemm, mnk:"<<token_num<<","<<output_size<<","<<input_size;
         if(quant_weight){
-          VLOG(1)<<"@@@ quant weight qkv gemm";
+          VLOG(5)<<"Doing quant weight qkv gemm";
           mixed_gemm_runner.gemm(
             reinterpret_cast<const half*>(buf1->data<T>()),
             reinterpret_cast<const uint8_t*>(qkv_weights[i]->data<int8_t>()),
@@ -1225,14 +1226,14 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
             dev_ctx.stream()
           );
         } else {
-            VLOG(1)<<"@@@ qkv_compute.ComputeForward";
+            VLOG(5)<<"Doing qkv_compute.ComputeForward";
             qkv_compute.ComputeForward(
                 qkv_weights[i], buf1, bias, &qkv_out, &qkv_out);
         }
       }
-      if(i==0){
-        VLOG(1)<<"@@ after qkv gemm:"<<qkv_out;
-      }
+      // if(i==0){
+      //   VLOG(1)<<"@@ after qkv gemm:"<<qkv_out;
+      // }
 #ifdef _DEBUG_FUSED_MULTI_TRANSFORMER
       VLOG(0) << "step2";
 #endif
@@ -1407,7 +1408,7 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
 #ifdef _DEBUG_FUSED_MULTI_TRANSFORMER
       VLOG(0) << "step3";
 #endif
-      VLOG(1)<<"@@@ out_linear gemm, mnk:"<<token_num<<","<<dim_embed<<","<<hidden_size;
+      VLOG(5)<<"Doing out_linear gemm, mnk:"<<token_num<<","<<dim_embed<<","<<hidden_size;
       if (pre_layer_norm) {        
         if(quant_weight){
           mixed_gemm_runner.gemm(
@@ -1445,9 +1446,9 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
         }
         AllReduce<T>(*buf0, ring_id, buf0->numel(), dev_ctx);
       }
-      cudaDeviceSynchronize();
-      PADDLE_THROW(paddle::platform::errors::Fatal(
-          "Paddle debuge throw"));
+      // cudaDeviceSynchronize();
+      // PADDLE_THROW(paddle::platform::errors::Fatal(
+      //     "Paddle debuge throw"));
 #ifdef _DEBUG_FUSED_MULTI_TRANSFORMER
       VLOG(0) << "step4";
 #endif
@@ -1494,7 +1495,7 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
 #endif
 
       // step6. ffn matmul1
-      VLOG(1)<<"@@@ ffn1 gemm, mnk:"<<token_num<<","<<dim_ffn<<","<<dim_embed;
+      VLOG(5)<<"Doing ffn1 gemm, mnk:"<<token_num<<","<<dim_ffn<<","<<dim_embed;
       if(quant_weight){
         mixed_gemm_runner.gemm_bias_act(
           reinterpret_cast<const half*>(buf1->data<T>()),
@@ -1530,7 +1531,7 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
                                                 ffn1_dropout_mask_data);
       }
       // step8. ffn2 matmul
-      VLOG(1)<<"@@@ ffn2 gemm, mnk:"<<token_num<<","<<dim_embed<<","<<dim_ffn;
+      VLOG(5)<<"Doing ffn2 gemm, mnk:"<<token_num<<","<<dim_embed<<","<<dim_ffn;
       if (pre_layer_norm) {
                 if(quant_weight){
           mixed_gemm_runner.gemm(
