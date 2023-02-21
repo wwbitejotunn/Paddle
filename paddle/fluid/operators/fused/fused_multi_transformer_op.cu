@@ -42,7 +42,6 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
     phi::DenseTensor x_remove_padding;
     bool encoder_remove_padding = (remove_padding && !time_step);
     int token_num = 0;
-
     // remove padding in encoder
     if (encoder_remove_padding) {
       // just for encoder
@@ -216,6 +215,7 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
     auto out_linear_biases = ctx.MultiInput<phi::DenseTensor>("OutLinearBias");
     int ring_id = ctx.Attr<int>("ring_id");
     // (transA, transB, compute_bias) = (false, false, false)
+    
     auto out_linear_compute = AttnMatMul<T>(
         dev_ctx, false, false, token_num, dim_embed, hidden_size, false);
 
@@ -259,6 +259,9 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
 
     auto ffn2_linear_compute = AttnMatMul<T>(
         dev_ctx, false, false, token_num, dim_embed, dim_ffn, false);
+
+    // auto ffn2_linear_compute = AttnMatMulV2<T>(
+    //     dev_ctx, false, false, token_num, dim_embed, dim_ffn, false);
 
     // 8. ffn2 Layernorm
     DropoutParam ffn2_dropout_param(true, 0, true, true, 0.0, nullptr, 0);
