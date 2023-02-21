@@ -18,7 +18,6 @@ template class CutlassFpAIntBGemmRunner<half, uint8_t>;
 
 namespace paddle {
 namespace operators {
-#define _DEBUG_FUSED_MULTI_TRANSFORMER
 // cublaslt ffn operation have accuracy problem 
 #if CUDA_VERSION >= 13000  // Use cublasLt to fuse FFN operation.
 
@@ -111,10 +110,11 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
     auto qkv_weights = ctx.MultiInput<phi::DenseTensor>("QKVW");
     auto qkv_biases = ctx.MultiInput<phi::DenseTensor>("QKVBias");
     auto qkv_weights_scales = ctx.MultiInput<phi::DenseTensor>("QKVWScale");
-    VLOG(1)<<"qkv_weights[0]"<<*(qkv_weights[0]);
-    if(qkv_weights_scales.size()>0){
-      VLOG(1)<<"qkv_weight_scale[0]"<<*(qkv_weights_scales[0]);
-    }
+    // debug quant qkv 
+    // VLOG(1)<<"qkv_weights[0]"<<*(qkv_weights[0]);
+    // if(qkv_weights_scales.size()>0){
+      // VLOG(1)<<"qkv_weight_scale[0]"<<*(qkv_weights_scales[0]);
+    // }
     const bool trans_qkvw = ctx.Attr<bool>("trans_qkvw");
     const auto qkv_w_dims = qkv_weights[0]->dims();
     int num_head = trans_qkvw ? qkv_w_dims[1] : qkv_w_dims[2];
@@ -914,10 +914,11 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
     auto qkv_weights = ctx.MultiInput<phi::DenseTensor>("QKVW");
     auto qkv_biases = ctx.MultiInput<phi::DenseTensor>("QKVBias");
     auto qkv_weights_scales = ctx.MultiInput<phi::DenseTensor>("QKVWScale");
-    VLOG(1)<<"qkv_weights[0]"<<*(qkv_weights[0]);
-    if(qkv_weights_scales.size()>0){
-      VLOG(1)<<"qkv_weight_scale[0]"<<*(qkv_weights_scales[0]);
-    }
+    // debug quant qkv 
+    // VLOG(1)<<"qkv_weights[0]"<<*(qkv_weights[0]);
+    // if(qkv_weights_scales.size()>0){
+    //   VLOG(1)<<"qkv_weight_scale[0]"<<*(qkv_weights_scales[0]);
+    // }
     const bool trans_qkvw = ctx.Attr<bool>("trans_qkvw");
     const auto qkv_w_dims = qkv_weights[0]->dims();
     int num_head = trans_qkvw ? qkv_w_dims[1] : qkv_w_dims[2];
@@ -1226,9 +1227,9 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
                 qkv_weights[i], buf1, bias, &qkv_out, &qkv_out);
         }
       }
-      if(i==0){
-        VLOG(1)<<"@@ after qkv gemm:"<<qkv_out;
-      }
+      // if(i==0){
+      //   VLOG(1)<<"@@ after qkv gemm:"<<qkv_out;
+      // }
 #ifdef _DEBUG_FUSED_MULTI_TRANSFORMER
       VLOG(0) << "step2";
 #endif
@@ -1441,9 +1442,9 @@ class FusedMultiTransformerOpKernel : public framework::OpKernel<T> {
         }
         AllReduce<T>(*buf0, ring_id, buf0->numel(), dev_ctx);
       }
-      cudaDeviceSynchronize();
-      PADDLE_THROW(paddle::platform::errors::Fatal(
-          "Paddle debuge throw"));
+      // cudaDeviceSynchronize();
+      // PADDLE_THROW(paddle::platform::errors::Fatal(
+      //     "Paddle debuge throw"));
 #ifdef _DEBUG_FUSED_MULTI_TRANSFORMER
       VLOG(0) << "step4";
 #endif
