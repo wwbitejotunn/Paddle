@@ -37,6 +37,8 @@ TileShape get_cta_shape_for_config(CutlassTileConfig tile_config)
         case CutlassTileConfig::CtaShape128x128x64_WarpShape64x32x64:
         case CutlassTileConfig::CtaShape128x128x64_WarpShape128x32x64:
             return TileShape{128, 128};
+        case CutlassTileConfig::CtaShape256x128x64_WarpShape64x32x64:
+            return TileShape{256, 128};
         default:
             throw std::runtime_error("[FT Error][get_grid_shape_for_config] Invalid config");
     }
