@@ -478,8 +478,10 @@ void CutlassFpAIntBGemmRunner<T, WeightType>::run_gemm<EpilogueTag>(const T*    
                                                                     const size_t      workspace_bytes,
                                                                     cudaStream_t      stream)
 {
-    VLOG(3)<<__PRETTY_FUNCTION__;    static constexpr bool          is_weight_only    = !std::is_same<T, WeightType>::value;
-    std::vector<CutlassGemmConfig> candidate_configs = get_candidate_configs(sm_, is_weight_only, false);
+    VLOG(3)<<__PRETTY_FUNCTION__;    
+    static constexpr bool          is_weight_only    = !std::is_same<T, WeightType>::value;
+    const bool is_weight_only_encoder = m>=512 ? true:false;
+    std::vector<CutlassGemmConfig> candidate_configs = get_candidate_configs(sm_, is_weight_only, is_weight_only_encoder, false);
     std::vector<int>               occupancies(candidate_configs.size());
 
     for (size_t ii = 0; ii < candidate_configs.size(); ++ii) {

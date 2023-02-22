@@ -86,7 +86,9 @@ bool is_valid_split_k_factor(const int64_t   m,
     return true;
 }
 
-std::vector<CutlassTileConfig> get_candidate_tiles(const bool is_weight_only, const bool simt_configs_only)
+std::vector<CutlassTileConfig> get_candidate_tiles(const bool is_weight_only, 
+                                                   const bool is_weight_only_encoder,
+                                                   const bool simt_configs_only)
 {
 
     std::vector<CutlassTileConfig> simt_configs{CutlassTileConfig::CtaShape128x128x8_WarpShape64x64x8};
@@ -94,24 +96,24 @@ std::vector<CutlassTileConfig> get_candidate_tiles(const bool is_weight_only, co
     std::vector<CutlassTileConfig> square_configs{CutlassTileConfig::CtaShape32x128x64_WarpShape32x32x64,
                                                   CutlassTileConfig::CtaShape64x128x64_WarpShape32x64x64,
                                                   CutlassTileConfig::CtaShape128x128x64_WarpShape64x32x64,
-                                                  CutlassTileConfig::CtaShape128x256x64_WarpShape64x64x64
-                                                //   CutlassTileConfig::CtaShape256x128x64_WarpShape64x64x64
                                                   };
 
     std::vector<CutlassTileConfig> quant_B_configs{CutlassTileConfig::CtaShape32x128x64_WarpShape32x32x64,
                                                    CutlassTileConfig::CtaShape64x128x64_WarpShape64x32x64,
                                                    CutlassTileConfig::CtaShape128x128x64_WarpShape128x32x64,
-                                                   CutlassTileConfig::CtaShape128x256x64_WarpShape64x64x64
-                                                //    CutlassTileConfig::CtaShape256x128x64_WarpShape64x64x64
                                                    };
-
-    const std::vector<CutlassTileConfig> allowed_configs = is_weight_only ? quant_B_configs : square_configs;
+    std::vector<CutlassTileConfig> encoder_quant_B_configs{
+                                               CutlassTileConfig::CtaShape128x256x64_WarpShape64x64x64,
+                                               CutlassTileConfig::CtaShape256x128x64_WarpShape64x64x64
+                                               };
+    const std::vector<CutlassTileConfig> allowed_quant_B_configs = is_weight_only_encoder ? encoder_quant_B_configs: quant_B_configs;
+    const std::vector<CutlassTileConfig> allowed_configs = is_weight_only ? allowed_quant_B_configs : square_configs;
     return simt_configs_only ? simt_configs : allowed_configs;
 }
 
-std::vector<CutlassGemmConfig> get_candidate_configs(int sm, const bool is_weight_only, const bool simt_configs_only)
+std::vector<CutlassGemmConfig> get_candidate_configs(int sm, const bool is_weight_only, const bool is_weight_only_encoder, const bool simt_configs_only)
 {
-    std::vector<CutlassTileConfig> tiles = get_candidate_tiles(is_weight_only, simt_configs_only);
+    std::vector<CutlassTileConfig> tiles = get_candidate_tiles(is_weight_only, is_weight_only_encoder, simt_configs_only);
 
     std::vector<CutlassGemmConfig> candidate_configs;
     const int                      min_stages = 2;
