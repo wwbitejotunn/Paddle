@@ -37,7 +37,9 @@ TileShape get_cta_shape_for_config(CutlassTileConfig tile_config)
         case CutlassTileConfig::CtaShape128x128x64_WarpShape64x32x64:
         case CutlassTileConfig::CtaShape128x128x64_WarpShape128x32x64:
             return TileShape{128, 128};
-        case CutlassTileConfig::CtaShape256x128x64_WarpShape64x32x64:
+        case CutlassTileConfig::CtaShape128x256x64_WarpShape64x64x64:
+            return TileShape{256, 128};
+        case CutlassTileConfig::CtaShape256x128x64_WarpShape64x64x64:
             return TileShape{256, 128};
         default:
             throw std::runtime_error("[FT Error][get_grid_shape_for_config] Invalid config");
@@ -91,11 +93,17 @@ std::vector<CutlassTileConfig> get_candidate_tiles(const bool is_weight_only, co
 
     std::vector<CutlassTileConfig> square_configs{CutlassTileConfig::CtaShape32x128x64_WarpShape32x32x64,
                                                   CutlassTileConfig::CtaShape64x128x64_WarpShape32x64x64,
-                                                  CutlassTileConfig::CtaShape128x128x64_WarpShape64x32x64};
+                                                  CutlassTileConfig::CtaShape128x128x64_WarpShape64x32x64,
+                                                  CutlassTileConfig::CtaShape128x256x64_WarpShape64x64x64
+                                                //   CutlassTileConfig::CtaShape256x128x64_WarpShape64x64x64
+                                                  };
 
     std::vector<CutlassTileConfig> quant_B_configs{CutlassTileConfig::CtaShape32x128x64_WarpShape32x32x64,
                                                    CutlassTileConfig::CtaShape64x128x64_WarpShape64x32x64,
-                                                   CutlassTileConfig::CtaShape128x128x64_WarpShape128x32x64};
+                                                   CutlassTileConfig::CtaShape128x128x64_WarpShape128x32x64,
+                                                   CutlassTileConfig::CtaShape128x256x64_WarpShape64x64x64
+                                                //    CutlassTileConfig::CtaShape256x128x64_WarpShape64x64x64
+                                                   };
 
     const std::vector<CutlassTileConfig> allowed_configs = is_weight_only ? quant_B_configs : square_configs;
     return simt_configs_only ? simt_configs : allowed_configs;
@@ -148,7 +156,6 @@ CutlassGemmConfig estimate_best_config_from_occupancies(const std::vector<Cutlas
         CutlassGemmConfig candidate_config = candidate_configs[ii];
         TileShape         tile_shape       = get_cta_shape_for_config(candidate_config.tile_config);
         int               occupancy        = occupancies[ii];
-
         if (occupancy == 0) {
             continue;
         }
