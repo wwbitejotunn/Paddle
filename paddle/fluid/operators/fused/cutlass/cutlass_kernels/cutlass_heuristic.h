@@ -37,8 +37,11 @@ TileShape get_cta_shape_for_config(CutlassTileConfig tile_config)
         case CutlassTileConfig::CtaShape128x128x64_WarpShape64x32x64:
         case CutlassTileConfig::CtaShape128x128x64_WarpShape128x32x64:
             return TileShape{128, 128};
+        // TODO(wangbojun), check the Tile Shape here,
+        // {256, 128} have better performance than 128, 128
         case CutlassTileConfig::CtaShape128x256x64_WarpShape64x64x64:
             return TileShape{256, 128};
+        // TODO(wangbojun), CtaShape256x128x64_WarpShape64x64x64 is not a 
         case CutlassTileConfig::CtaShape256x128x64_WarpShape64x64x64:
             return TileShape{256, 128};
         default:
@@ -103,8 +106,8 @@ std::vector<CutlassTileConfig> get_candidate_tiles(const bool is_weight_only,
                                                    CutlassTileConfig::CtaShape128x128x64_WarpShape128x32x64,
                                                    };
     std::vector<CutlassTileConfig> encoder_quant_B_configs{
-                                               CutlassTileConfig::CtaShape128x256x64_WarpShape64x64x64,
-                                               CutlassTileConfig::CtaShape256x128x64_WarpShape64x64x64
+                                               CutlassTileConfig::CtaShape128x256x64_WarpShape64x64x64
+                                            //    CutlassTileConfig::CtaShape256x128x64_WarpShape64x64x64
                                                };
     const std::vector<CutlassTileConfig> allowed_quant_B_configs = is_weight_only_encoder ? encoder_quant_B_configs: quant_B_configs;
     const std::vector<CutlassTileConfig> allowed_configs = is_weight_only ? allowed_quant_B_configs : square_configs;
