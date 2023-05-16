@@ -438,13 +438,13 @@ void FusedBiasActKernel(const Context &dev_ctx,
                         const paddle::optional<DenseTensor> &smooth,
                         const std::string &act_method,
                         const std::string &compute_dtype,
-                        int rows,
-                        int cols,
                         float quant_scale,
                         int quant_round_type,
                         float quant_max_bound,
                         float quant_min_bound,
                         DenseTensor *out) {
+  int rows = x.dims()[0];
+  int cols = x.dims()[1];
 #ifndef PADDLE_WITH_HIP
   if (x.dtype() == phi::DataType::INT32) {
     if (compute_dtype == "bf16") {

@@ -127,27 +127,27 @@ def masked_multihead_attention(
     inputs = {}
     inputs['x'] = x
     inputs['cache_kv'] = cache_kv
-    if src_mask:
+    if src_mask is not None:
         inputs['src_mask'] = src_mask
-    if cum_offsets:
+    if cum_offsets is not None:
         inputs['cum_offsets'] = cum_offsets
-    if sequence_lengths:
+    if sequence_lengths is not None:
         inputs['sequence_lengths'] = sequence_lengths
-    if rotary_tensor:
+    if rotary_tensor is not None:
         inputs['rotary_tensor'] = rotary_tensor
     beam_cache_offset_flag = False
-    if beam_cache_offset:
+    if beam_cache_offset is not None:
         inputs['beam_cache_offset'] = beam_cache_offset
         beam_cache_offset_flag = True
     else:
         beam_cache_offset = helper.create_variable_for_type_inference(
             dtype="int"
         )
-    if qkv_out_scale:
+    if qkv_out_scale is not None:
         inputs['qkv_out_scale'] = qkv_out_scale
-    if out_linear_shift:
+    if out_linear_shift is not None:
         inputs['out_linear_shift'] = out_linear_shift
-    if out_linear_smooth:
+    if out_linear_smooth is not None:
         inputs['out_linear_smooth'] = out_linear_smooth
 
     outputs = {
@@ -171,6 +171,6 @@ def masked_multihead_attention(
     )
     return (
         (out, cache_kv, beam_cache_offset)
-        if beam_cache_offset_flag
+        if beam_cache_offset_flag is not None
         else (out, cache_kv)
     )
