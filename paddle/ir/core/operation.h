@@ -17,6 +17,7 @@
 #include <ostream>
 #include <vector>
 #include "paddle/ir/core/block.h"
+#include "paddle/ir/core/macros.h"
 #include "paddle/ir/core/op_info.h"
 #include "paddle/ir/core/operation_utils.h"
 #include "paddle/ir/core/type.h"
@@ -59,8 +60,9 @@ class IR_API alignas(8) Operation final {
 
   /// Returns the region held by this operation at position 'index'.
   Region &region(unsigned index);
+  const Region &region(unsigned index) const;
 
-  void Print(std::ostream &os);
+  void Print(std::ostream &os) const;
 
   const AttributeMap &attributes() const { return attributes_; }
 
@@ -121,6 +123,7 @@ class IR_API alignas(8) Operation final {
   void Verify();
 
  private:
+  DISABLE_COPY_AND_ASSIGN(Operation);
   Operation(const AttributeMap &attribute,
             ir::OpInfo op_info,
             uint32_t num_results,

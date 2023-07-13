@@ -24,6 +24,7 @@ from .fused_rotary_position_embedding import fused_rotary_position_embedding
 from .memory_efficient_attention_variable import (
     memory_efficient_attention_variable,
 )
+from .rms_norm import rms_norm
 
 
 __all__ = [
@@ -37,4 +38,5 @@ __all__ = [
     'fused_dropout_add',
     'fused_rotary_position_embedding',
     'memory_efficient_attention_variable',
+    "rms_norm",
 ]
