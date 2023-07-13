@@ -448,6 +448,15 @@ void MemoryEfficientAttentionInferMeta(const MetaTensor& query,
                                        MetaTensor* logsumexp,
                                        MetaTensor* seed_and_offset);
 
+void MemoryEfficientAttentionVariableInferMeta(const MetaTensor& query,
+                                               const MetaTensor& key,
+                                               const MetaTensor& value,
+                                               const MetaTensor& seq_lens,
+                                               const MetaTensor& mask,
+                                               float scale,
+                                               bool causal,
+                                               MetaTensor* out);
+
 void MeshgridInferMeta(const std::vector<const MetaTensor*>& inputs,
                        std::vector<MetaTensor*> outputs);
 

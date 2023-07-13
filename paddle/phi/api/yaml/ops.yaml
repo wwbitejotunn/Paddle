@@ -1616,6 +1616,16 @@
   optional : bias, cu_seqlens_q, cu_seqlens_k, causal_diagonal, seqlen_k
   backward : memory_efficient_attention_grad
 
+- op : memory_efficient_attention_variable
+  args : (Tensor query, Tensor key, Tensor value, Tensor seq_lens, Tensor mask, float scale, bool causal)
+  output : Tensor
+  infer_meta :
+    func : MemoryEfficientAttentionVariableInferMeta
+  kernel :
+    func : memory_efficient_attention_variable
+    data_type : query
+  optional : mask
+
 - op : merge_selected_rows
   args : (Tensor x)
   output : Tensor(out)
