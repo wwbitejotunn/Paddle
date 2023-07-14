@@ -463,10 +463,10 @@ void MemoryEfficientAttentionInferMeta(const MetaTensor& query,
                                        MetaTensor* logsumexp,
                                        MetaTensor* seed_and_offset);
 
-void MemoryEfficientAttentionVariableInferMeta(const MetaTensor& query,
-                                               const MetaTensor& key,
-                                               const MetaTensor& value,
+void MemoryEfficientAttentionVariableInferMeta(const MetaTensor& qkv,
                                                const MetaTensor& seq_lens,
+                                               const MetaTensor& padding_offset,
+                                               const MetaTensor& pre_cache,
                                                const MetaTensor& mask,
                                                float scale,
                                                bool causal,

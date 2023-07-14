@@ -57,12 +57,28 @@ def create_attn_mask(
 
 
 def naive_attention_impl(query, key, value, mask, scale):
-    qk_res = paddle.matmul(query, key, transpose_y=True)
+    q = query.transpose([0, 2, 1, 3])
+    k = key.transpose([0, 2, 1, 3])
+    v = value.transpose([0, 2, 1, 3])
+    qk_res = paddle.matmul(q, k, transpose_y=True)
     attention = qk_res * scale
     attention = attention + mask
     softmax_result = paddle.nn.functional.softmax(attention, -1)
-    result = paddle.matmul(softmax_result, value)
+    result = paddle.matmul(softmax_result, v).transpose([0, 2, 1, 3])
     return result
+
+
+def get_padding_offset(seq_lens, max_seq_len, batch_size):
+    token_num = paddle.sum(seq_lens)
+    padding_offset = paddle.zeros([token_num], "int32")
+    index = 0
+    cum_offset = 0
+    for i in range(batch_size):
+        for j in range(seq_lens[i]):
+            padding_offset[index] = cum_offset
+            index += 1
+        cum_offset += max_seq_len - seq_lens[i]
+    return padding_offset
 
 
 @unittest.skipIf(
@@ -73,9 +89,10 @@ class TestMemEffAttentionVariableAPI(unittest.TestCase):
     def setUp(self):
         self.name = "MemEffAPIVariable_fp32"
         self.place = paddle.CUDAPlace(0)
-        self.batch_size = 1
+        self.batch_size = 2
         self.num_head = 8
         self.seq_len = 64
+        self.token_num = self.batch_size * self.seq_len
         self.dim_head = 16
         self.seq_lens = paddle.to_tensor(
             [
@@ -85,9 +102,9 @@ class TestMemEffAttentionVariableAPI(unittest.TestCase):
             "int32",
         )
         self.shape = (
-            self.batch_size,
+            self.token_num,
+            3,
             self.num_head,
-            self.seq_len,
             self.dim_head,
         )
         self.dtype = 'float32'
@@ -108,26 +125,45 @@ class TestMemEffAttentionVariableAPI(unittest.TestCase):
 
         paddle.disable_static()
 
-        query = np.random.random(self.shape)
-        q = paddle.to_tensor(
-            query, place=self.place, dtype=self.dtype, stop_gradient=False
+        qkv = np.random.random(self.shape)
+        qkv_tensor = paddle.to_tensor(qkv, self.dtype)
+
+        query = qkv_tensor[:, 0, :, :].reshape(
+            [self.batch_size, self.seq_len, self.num_head, self.dim_head]
         )
-        key = np.random.random(self.shape)
-        k = paddle.to_tensor(
-            key, place=self.place, dtype=self.dtype, stop_gradient=False
+        key = qkv_tensor[:, 1, :, :].reshape(
+            [self.batch_size, self.seq_len, self.num_head, self.dim_head]
         )
-        value = np.random.random(self.shape)
-        v = paddle.to_tensor(
-            value, place=self.place, dtype=self.dtype, stop_gradient=False
+        value = qkv_tensor[:, 2, :, :].reshape(
+            [self.batch_size, self.seq_len, self.num_head, self.dim_head]
         )
 
-        out_ = naive_attention_impl(q, k, v, self.attention_mask, self.scale)
+        out_ = naive_attention_impl(
+            query, key, value, self.attention_mask, self.scale
+        ).reshape((-1, self.num_head, self.dim_head))
 
+        padding_offset = get_padding_offset(
+            self.seq_lens, paddle.max(self.seq_lens), self.batch_size
+        )
         out = memory_efficient_attention_variable(
-            q, k, v, self.seq_lens, self.attention_mask, self.scale
+            qkv_tensor,
+            self.seq_lens,
+            padding_offset,
+            mask=self.attention_mask,
+            scale=self.scale,
+        )
+        out_casual = memory_efficient_attention_variable(
+            qkv_tensor,
+            self.seq_lens,
+            padding_offset,
+            scale=self.scale,
+            causal=True,
         )
 
         np.testing.assert_allclose(out.numpy(), out_, rtol=5e-03, atol=1e-03)
+        np.testing.assert_allclose(
+            out_casual.numpy(), out_, rtol=5e-03, atol=1e-03
+        )
 
 
 class TestMemEffAPIVariableDtypeFP16(TestMemEffAttentionVariableAPI):
@@ -137,7 +173,8 @@ class TestMemEffAPIVariableDtypeFP16(TestMemEffAttentionVariableAPI):
         self.batch_size = 3
         self.num_head = 16
         self.seq_len = 64
-        self.dim_head = 32
+        self.token_num = self.batch_size * self.seq_len
+        self.dim_head = 64
         self.seq_lens = paddle.to_tensor(
             [
                 self.seq_len,
@@ -146,9 +183,9 @@ class TestMemEffAPIVariableDtypeFP16(TestMemEffAttentionVariableAPI):
             "int32",
         )
         self.shape = (
-            self.batch_size,
+            self.token_num,
+            3,
             self.num_head,
-            self.seq_len,
             self.dim_head,
         )
         self.dtype = 'float16'
@@ -170,6 +207,7 @@ class TestMemEffAPIVariableDtypeBF16(TestMemEffAttentionVariableAPI):
         self.batch_size = 1
         self.num_head = 8
         self.seq_len = 32
+        self.token_num = self.batch_size * self.seq_len
         self.dim_head = 128
         self.seq_lens = paddle.to_tensor(
             [
@@ -179,9 +217,9 @@ class TestMemEffAPIVariableDtypeBF16(TestMemEffAttentionVariableAPI):
             "int32",
         )
         self.shape = (
-            self.batch_size,
+            self.token_num,
+            3,
             self.num_head,
-            self.seq_len,
             self.dim_head,
         )
         self.dtype = 'bfloat16'
@@ -203,6 +241,7 @@ class TestMemEffAPIVariableDtypeFP16Static(unittest.TestCase):
         self.batch_size = 3
         self.num_head = 16
         self.seq_len = 64
+        self.token_num = self.batch_size * self.seq_len
         self.dim_head = 32
         self.seq_lens = paddle.to_tensor(
             [
@@ -210,11 +249,15 @@ class TestMemEffAPIVariableDtypeFP16Static(unittest.TestCase):
             ]
             * self.batch_size,
             "int32",
+        )
+        self.padding_offset = get_padding_offset(
+            self.seq_lens, paddle.max(self.seq_lens), self.batch_size
         ).numpy()
+        self.seq_lens = self.seq_lens.numpy()
         self.shape = (
-            self.batch_size,
+            self.token_num,
+            3,
             self.num_head,
-            self.seq_len,
             self.dim_head,
         )
         self.dtype = 'float16'
@@ -226,9 +269,28 @@ class TestMemEffAPIVariableDtypeFP16Static(unittest.TestCase):
             ]
             * self.batch_size,
         ).numpy()
-        self.q = np.random.random(self.shape).astype(self.dtype)
-        self.k = np.random.random(self.shape).astype(self.dtype)
-        self.v = np.random.random(self.shape).astype(self.dtype)
+        self.qkv = np.random.random(self.shape).astype(self.dtype)
+        self.q = (
+            self.qkv[:, 0, :, :]
+            .reshape(
+                [self.batch_size, self.seq_len, self.num_head, self.dim_head]
+            )
+            .astype(self.dtype)
+        )
+        self.k = (
+            self.qkv[:, 1, :, :]
+            .reshape(
+                [self.batch_size, self.seq_len, self.num_head, self.dim_head]
+            )
+            .astype(self.dtype)
+        )
+        self.v = (
+            self.qkv[:, 2, :, :]
+            .reshape(
+                [self.batch_size, self.seq_len, self.num_head, self.dim_head]
+            )
+            .astype(self.dtype)
+        )
         self.scale = 1.0 / np.sqrt(self.shape[-1])
 
         self.ref_out = naive_attention_impl(
@@ -237,38 +299,36 @@ class TestMemEffAPIVariableDtypeFP16Static(unittest.TestCase):
             paddle.to_tensor(self.v),
             paddle.to_tensor(self.attention_mask),
             self.scale,
-        )
+        ).reshape([-1, self.num_head, self.dim_head])
 
     def test_all(self):
         paddle.enable_static()
         with program_guard(Program(), Program()):
-            q = paddle.static.data(
-                name="query", shape=self.shape, dtype=self.dtype
+            qkv = paddle.static.data(
+                name="qkv", shape=self.shape, dtype=self.dtype
             )
-            k = paddle.static.data(
-                name="key", shape=self.shape, dtype=self.dtype
+            seq_lens = paddle.static.data(
+                name="seq_lens", shape=[self.batch_size, 1], dtype="int32"
             )
-            v = paddle.static.data(
-                name="value", shape=self.shape, dtype=self.dtype
+            padding_offset = paddle.static.data(
+                name="padding_offset",
+                shape=[self.token_num],
+                dtype="int32",
             )
             mask = paddle.static.data(
                 name="mask",
                 shape=[self.batch_size, 1, self.seq_len, self.seq_len],
                 dtype=self.dtype,
             )
-            seq_lens = paddle.static.data(
-                name="seq_lens", shape=[self.batch_size, 1], dtype="int32"
-            )
             out = memory_efficient_attention_variable(
-                q, k, v, seq_lens, mask, self.scale
+                qkv, seq_lens, padding_offset, mask=mask, scale=self.scale
             )
-            exe = fluid.Executor()
+            exe = fluid.Executor(paddle.CUDAPlace(0))
             res = exe.run(
                 feed={
-                    "query": self.q,
-                    "key": self.k,
-                    "value": self.v,
+                    "qkv": self.qkv,
                     "seq_lens": self.seq_lens,
+                    "padding_offset": self.padding_offset,
                     "mask": self.attention_mask,
                 },
                 fetch_list=[out],

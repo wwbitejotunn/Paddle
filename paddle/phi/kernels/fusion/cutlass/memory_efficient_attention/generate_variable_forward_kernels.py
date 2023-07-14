@@ -154,7 +154,8 @@ void  {NAME}({CPP_CLASS} default_fmha, Params &params, const phi::GPUContext& ct
       params.num_heads,
       params.key_value_seq_len,
       params.head_size,
-      params.value_head_size);
+      params.value_head_size,
+      params.prompt_num);
   phi::memory_utils::Copy(phi::CPUPlace(),
                        problem_sizes1.data(),
                        ctx.GetPlace(),
@@ -489,6 +490,8 @@ struct Params {{
   int64_t ElementV;
   int64_t ElementO;
 
+  int prompt_num = 0;
+
   bool causal;
   bool mask_broadcast_row;
 }};
@@ -500,13 +503,14 @@ __global__ static void get_problem_sizes(const int* seq_lens,
                                          const int num_head,
                                          const int kv_seq_len,
                                          const int head_size,
-                                         const int value_head_size) {{
+                                         const int value_head_size,
+                                         const int prompt_num) {{
   int bi = blockIdx.x;
   int hi = threadIdx.x;
   if (bi < bs && hi < num_head) {{
     int id = bi * num_head + hi;
     int m = seq_lens[bi];
-    int mkv = kv_seq_len;
+    int mkv = m + prompt_num;
     int k0 = head_size;
     int k1 = value_head_size;
     GemmCoord problem0(m, mkv, k0);
