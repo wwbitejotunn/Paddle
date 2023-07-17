@@ -25,6 +25,7 @@ from .memory_efficient_attention_variable import (
     memory_efficient_attention_variable,
 )
 from .rms_norm import rms_norm
+from .masked_multihead_attention import masked_multihead_attention
 
 
 __all__ = [
@@ -39,4 +40,5 @@ __all__ = [
     'fused_rotary_position_embedding',
     'memory_efficient_attention_variable',
     "rms_norm",
+    "masked_multihead_attention",
 ]
