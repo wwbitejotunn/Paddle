@@ -697,6 +697,20 @@ void MoeInferMeta(const MetaTensor& x,
                   const std::string& act_type,
                   MetaTensor* out);
 
+void NormHelperInferMeta(const MetaTensor& x,
+                         const MetaTensor& residual,
+                         const MetaTensor& bias,
+                         const MetaTensor& norm_weight,
+                         const MetaTensor& norm_bias,
+                         const float epsilon,
+                         const float residual_alpha,
+                         const std::string& norm_type,
+                         int begin_norm_axis,
+                         MetaTensor* out,
+                         MetaTensor* residual_out,
+                         MetaTensor* mean,
+                         MetaTensor* variance);
+
 void FusedMultiHeadAttentionInferMeta(const MetaTensor& query,
                                       const MetaTensor& key,
                                       const MetaTensor& value,

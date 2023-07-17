@@ -1,4 +1,4 @@
-# Copyright (c) 2022 PaddlePaddle Authors. All Rights Reserved.
+# Copyright (c) 2023 PaddlePaddle Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -50,9 +50,15 @@ def rms_norm(x, weight, bias, epsilon, begin_norm_axis):
 
     helper = LayerHelper('rms_norm', **locals())
     out = helper.create_variable_for_type_inference(dtype=x.dtype)
+    inputs = {}
+    inputs['x'] = x
+    inputs['weight'] = weight
+    if bias:
+        inputs['bias'] = bias
+
     helper.append_op(
         type='rms_norm',
-        inputs={'x': x, 'weight': weight, 'bias': bias},
+        inputs=inputs,
         attrs={"epsilon": epsilon, "begin_norm_axis": begin_norm_axis},
         outputs={'out': out},
     )
