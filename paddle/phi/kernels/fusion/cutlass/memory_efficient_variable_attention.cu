@@ -312,8 +312,6 @@ void MultiHeadAttentionVariableForwardKernel(
                          max_len_this_time,
                          max_len_this_time,
                          dim_head);
-  // VLOG(0) << "q: " << q_transpose_out;
-  // VLOG(0) << "kv: " << kv_transpose_out;
   int prompt_num = 0;
   phi::DenseTensor cache_kv_out_tensor;
   if (pre_cache) {
