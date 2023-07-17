@@ -82,8 +82,8 @@ def get_padding_offset(seq_lens, max_seq_len, batch_size):
 
 
 @unittest.skipIf(
-    not core.is_compiled_with_cuda() or get_cuda_version() < 11030,
-    "core is not compiled with CUDA and cuda version need larger than or equal to 11.3",
+    not core.is_compiled_with_cuda() or get_cuda_version() < 11020,
+    "core is not compiled with CUDA and cuda version need larger than or equal to 11.2",
 )
 class TestMemEffAttentionVariableAPI(unittest.TestCase):
     def setUp(self):
@@ -234,6 +234,10 @@ class TestMemEffAPIVariableDtypeBF16(TestMemEffAttentionVariableAPI):
         self.scale = 1.0 / np.sqrt(self.shape[-1])
 
 
+@unittest.skipIf(
+    not core.is_compiled_with_cuda() or get_cuda_version() < 11020,
+    "core is not compiled with CUDA and cuda version need larger than or equal to 11.2",
+)
 class TestMemEffAPIVariableDtypeFP16Static(unittest.TestCase):
     def setUp(self):
         self.name = "MemEffAPIVariableStatic_fp16"
