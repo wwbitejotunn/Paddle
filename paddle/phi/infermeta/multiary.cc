@@ -3718,7 +3718,8 @@ void NormHelperInferMeta(const MetaTensor& x,
 
   int64_t rows = size / normalized_dims;
 
-  PADDLE_ENFORCE_EQ(normalized_dims,
+  if(norm_weight){
+    PADDLE_ENFORCE_EQ(normalized_dims,
                     norm_weight.dims()[0],
                     phi::errors::InvalidArgument(
                         "The normalized size of Input(X) must equal to be"
@@ -3727,6 +3728,7 @@ void NormHelperInferMeta(const MetaTensor& x,
                         "of Weight is [%d]",
                         normalized_dims,
                         norm_weight.dims()[0]));
+  }
 
   auto out_dims = phi::make_ddim(x_dims_vec);
 
