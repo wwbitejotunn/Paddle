@@ -558,13 +558,13 @@ struct ToPhiDTypeTrait {{
 
     path = Path(args.dst_path) / "autogen_variable"
     os.makedirs(path, exist_ok=True)
-    path = Path(path) / "memory_efficient_variable_attention.h"
+    path = Path(path) / "variable_length_memory_efficient_attention.h"
     path.write_text(main_header_content)
 
 
 if os.path.exists(Path(args.dst_path) / "autogen_variable"):
     shutil.rmtree(Path(args.dst_path) / "autogen_variable")
-forward_impl = "paddle/phi/kernels/fusion/cutlass/memory_efficient_attention/autogen_variable/memory_efficient_variable_attention.h"
+forward_impl = "paddle/phi/kernels/fusion/cutlass/memory_efficient_attention/autogen_variable/variable_length_memory_efficient_attention.h"
 
 write_main_header()
 

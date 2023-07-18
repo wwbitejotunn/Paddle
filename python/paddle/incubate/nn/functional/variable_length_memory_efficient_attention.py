@@ -26,7 +26,7 @@ from paddle.fluid.layer_helper import LayerHelper
 from paddle.framework import in_dynamic_mode
 
 
-def memory_efficient_attention_variable(
+def variable_length_memory_efficient_attention(
     qkv,
     seq_lens,
     padding_offset,
@@ -56,7 +56,7 @@ def memory_efficient_attention_variable(
             # required: gpu
             import math
             import paddle
-            from paddle.incubate.nn.functional import memory_efficient_attention_variable
+            from paddle.incubate.nn.functional import variable_length_memory_efficient_attention
 
             def get_padding_offset(seq_lens, max_seq_len, batch_size):
                 token_num = paddle.sum(seq_lens)
@@ -102,7 +102,7 @@ def memory_efficient_attention_variable(
                 return result
 
             out = naive_attention_impl(query, key, value, mask, scale)
-            # equals to: out = memory_efficient_attention_variable(qkv, seq_lens, padding_offset, mask=mask, scale=scale)
+            # equals to: out = variable_length_memory_efficient_attention(qkv, seq_lens, padding_offset, mask=mask, scale=scale)
 
             print(out.shape) # [token_num, num_head, head_size]
     """
@@ -111,14 +111,16 @@ def memory_efficient_attention_variable(
         scale = float(1.0 / math.sqrt(head_size))
 
     if in_dynamic_mode():
-        return _C_ops.memory_efficient_attention_variable(
+        return _C_ops.variable_length_memory_efficient_attention(
             qkv, seq_lens, padding_offset, pre_cache, mask, scale, causal
         )
 
-    helper = LayerHelper('memory_efficient_attention_variable', **locals())
+    helper = LayerHelper(
+        'variable_length_memory_efficient_attention', **locals()
+    )
     out = helper.create_variable_for_type_inference(dtype=qkv.dtype)
     helper.append_op(
-        type='memory_efficient_attention_variable',
+        type='variable_length_memory_efficient_attention',
         inputs={
             'qkv': qkv,
             'seq_lens': seq_lens,

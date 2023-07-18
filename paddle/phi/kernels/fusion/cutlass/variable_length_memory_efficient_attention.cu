@@ -433,7 +433,7 @@ void MultiHeadAttentionVariableForwardKernel(
 }  // namespace fusion
 }  // namespace phi
 
-PD_REGISTER_KERNEL(memory_efficient_attention_variable,
+PD_REGISTER_KERNEL(variable_length_memory_efficient_attention,
                    GPU,
                    ALL_LAYOUT,
                    phi::fusion::MultiHeadAttentionVariableForwardKernel,
