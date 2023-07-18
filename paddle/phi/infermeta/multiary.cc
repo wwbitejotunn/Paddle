@@ -2528,14 +2528,15 @@ void MemoryEfficientAttentionInferMeta(const MetaTensor& query,
   seed_and_offset->set_dtype(phi::DataType::INT64);
 }
 
-void MemoryEfficientAttentionVariableInferMeta(const MetaTensor& qkv,
-                                               const MetaTensor& seq_lens,
-                                               const MetaTensor& padding_offset,
-                                               const MetaTensor& pre_cache,
-                                               const MetaTensor& mask,
-                                               float scale,
-                                               bool causal,
-                                               MetaTensor* out) {
+void VariableLengthMemoryEfficientAttentionInferMeta(
+    const MetaTensor& qkv,
+    const MetaTensor& seq_lens,
+    const MetaTensor& padding_offset,
+    const MetaTensor& pre_cache,
+    const MetaTensor& mask,
+    float scale,
+    bool causal,
+    MetaTensor* out) {
   PADDLE_ENFORCE_EQ(
       qkv.dims().size(),
       4,

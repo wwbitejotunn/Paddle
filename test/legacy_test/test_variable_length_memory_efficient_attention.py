@@ -21,7 +21,9 @@ import numpy as np
 import paddle
 from paddle import fluid
 from paddle.fluid import Program, core, program_guard
-from paddle.incubate.nn.functional import memory_efficient_attention_variable
+from paddle.incubate.nn.functional import (
+    variable_length_memory_efficient_attention,
+)
 
 paddle.seed(2023)
 
@@ -82,8 +84,8 @@ def get_padding_offset(seq_lens, max_seq_len, batch_size):
 
 
 @unittest.skipIf(
-    not core.is_compiled_with_cuda() or get_cuda_version() < 11030,
-    "core is not compiled with CUDA and cuda version need larger than or equal to 11.3",
+    not core.is_compiled_with_cuda() or get_cuda_version() < 11020,
+    "core is not compiled with CUDA and cuda version need larger than or equal to 11.2",
 )
 class TestMemEffAttentionVariableAPI(unittest.TestCase):
     def setUp(self):
@@ -145,14 +147,14 @@ class TestMemEffAttentionVariableAPI(unittest.TestCase):
         padding_offset = get_padding_offset(
             self.seq_lens, paddle.max(self.seq_lens), self.batch_size
         )
-        out = memory_efficient_attention_variable(
+        out = variable_length_memory_efficient_attention(
             qkv_tensor,
             self.seq_lens,
             padding_offset,
             mask=self.attention_mask,
             scale=self.scale,
         )
-        out_casual = memory_efficient_attention_variable(
+        out_casual = variable_length_memory_efficient_attention(
             qkv_tensor,
             self.seq_lens,
             padding_offset,
@@ -234,6 +236,10 @@ class TestMemEffAPIVariableDtypeBF16(TestMemEffAttentionVariableAPI):
         self.scale = 1.0 / np.sqrt(self.shape[-1])
 
 
+@unittest.skipIf(
+    not core.is_compiled_with_cuda() or get_cuda_version() < 11020,
+    "core is not compiled with CUDA and cuda version need larger than or equal to 11.2",
+)
 class TestMemEffAPIVariableDtypeFP16Static(unittest.TestCase):
     def setUp(self):
         self.name = "MemEffAPIVariableStatic_fp16"
@@ -320,7 +326,7 @@ class TestMemEffAPIVariableDtypeFP16Static(unittest.TestCase):
                 shape=[self.batch_size, 1, self.seq_len, self.seq_len],
                 dtype=self.dtype,
             )
-            out = memory_efficient_attention_variable(
+            out = variable_length_memory_efficient_attention(
                 qkv, seq_lens, padding_offset, mask=mask, scale=self.scale
             )
             exe = fluid.Executor(paddle.CUDAPlace(0))

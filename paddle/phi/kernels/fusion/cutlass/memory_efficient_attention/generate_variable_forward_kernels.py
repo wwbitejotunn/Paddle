@@ -180,12 +180,12 @@ void  {NAME}({CPP_CLASS} default_fmha, Params &params, const phi::GPUContext& ct
       problem_count,
       threadblock_count,
       params.num_heads,
-      const_cast<scalar_t*>(reinterpret_cast<const scalar_t*>(params.query_ptr)),
-      const_cast<scalar_t*>(reinterpret_cast<const scalar_t*>(params.key_ptr)),
+      reinterpret_cast<scalar_t*>(params.query_ptr),
+      reinterpret_cast<scalar_t*>(params.key_ptr),
       params.mask_ptr
-          ? const_cast<scalar_t*>(reinterpret_cast<const scalar_t*>(params.mask_ptr))
+          ? reinterpret_cast<scalar_t*>(params.mask_ptr)
           : nullptr,
-      const_cast<scalar_t*>(reinterpret_cast<const scalar_t*>(params.value_ptr)),
+      reinterpret_cast<scalar_t*>(params.value_ptr),
       reinterpret_cast<scalar_t*>(params.output_ptr),
       AttentionKernel::kNeedsOutputAccumulatorBuffer
           ? reinterpret_cast<output_accum_t*>(params.output_accum_ptr)
@@ -440,7 +440,6 @@ def write_main_header():
 #include "paddle/phi/core/kernel_registry.h"
 
 #include "cutlass/util/device_memory.h"
-#include "paddle/fluid/framework/tensor_util.h"
 #include "paddle/phi/kernels/fusion/cutlass/memory_efficient_attention/default_fmha_grouped.h"
 #include "paddle/phi/kernels/fusion/cutlass/memory_efficient_attention/gemm/gemm_grouped.h"
 
@@ -453,12 +452,12 @@ struct Params {{
   phi::DataType datatype;
 
   // [bs, nh, seq_len, dh]
-  const void* query_ptr;
-  const void* key_ptr;
-  const void* value_ptr;
+  void* query_ptr;
+  void* key_ptr;
+  void* value_ptr;
 
   // and it can be broadcasted in axis0, 1, 2.
-  const void* mask_ptr = nullptr;
+  void* mask_ptr = nullptr;
 
   const int* seq_lens = nullptr;
 
@@ -559,13 +558,13 @@ struct ToPhiDTypeTrait {{
 
     path = Path(args.dst_path) / "autogen_variable"
     os.makedirs(path, exist_ok=True)
-    path = Path(path) / "memory_efficient_variable_attention.h"
+    path = Path(path) / "variable_length_memory_efficient_attention.h"
     path.write_text(main_header_content)
 
 
 if os.path.exists(Path(args.dst_path) / "autogen_variable"):
     shutil.rmtree(Path(args.dst_path) / "autogen_variable")
-forward_impl = "paddle/phi/kernels/fusion/cutlass/memory_efficient_attention/autogen_variable/memory_efficient_variable_attention.h"
+forward_impl = "paddle/phi/kernels/fusion/cutlass/memory_efficient_attention/autogen_variable/variable_length_memory_efficient_attention.h"
 
 write_main_header()
 
