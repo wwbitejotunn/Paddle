@@ -60,7 +60,7 @@ class NormHelper {
   void NormResidualBias(const phi::DenseTensor& x,
                         const paddle::optional<DenseTensor>& residual,
                         const paddle::optional<DenseTensor>& bias,
-                        const phi::DenseTensor& norm_weight,
+                        const paddle::optional<DenseTensor>& norm_weight,
                         const paddle::optional<DenseTensor>& norm_bias,
                         phi::DenseTensor* mean,
                         phi::DenseTensor* var,
@@ -77,7 +77,7 @@ class NormHelper {
 
     if (norm_type_ == "layernorm") {
       // For layernorm, it use FP32 type weight and bias.
-      const U* norm_weight_data = norm_weight.data<U>();
+      const U* norm_weight_data = norm_weight ? norm_weight.get().data<U>() : nullptr;
       const U* norm_bias_data = norm_bias ? norm_bias.get().data<U>() : nullptr;
       residual_bias_add_layernorm_helper_.LayernormResidualDropoutBias(
           dev_ctx_,
@@ -95,7 +95,7 @@ class NormHelper {
       // For rmsnorm, it use Input's type weight and bias.
       // Currently, it only used in inference, so we do not save intermediate
       // result for backward.
-      const T* norm_weight_data = norm_weight.data<T>();
+      const T* norm_weight_data = norm_weight ? norm_weight.get().data<T>() : nullptr;
       const T* norm_bias_data = norm_bias ? norm_bias.get().data<T>() : nullptr;
       phi::ResidualAddRmsNormWrapper<T, phi::GPUContext>(dev_ctx_,
                                                          x_data,
@@ -116,7 +116,7 @@ class NormHelper {
 
   // dst = Norm(x)
   void Norm(const phi::DenseTensor& x,
-            const phi::DenseTensor& norm_weight,
+            const paddle::optional<DenseTensor>& norm_weight,
             const paddle::optional<DenseTensor>& norm_bias,
             phi::DenseTensor* mean,
             phi::DenseTensor* var,
@@ -129,7 +129,7 @@ class NormHelper {
 
     if (norm_type_ == "layernorm") {
       // For layernorm, it use FP32 type weight and bias.
-      const U* norm_weight_data = norm_weight.data<U>();
+      const U* norm_weight_data = norm_weight ? norm_weight.get().data<U>() : nullptr;
       const U* norm_bias_data = norm_bias ? norm_bias.get().data<U>() : nullptr;
       layernorm_helper_.ComputeForward(x_data,
                                        norm_weight_data,
@@ -141,7 +141,7 @@ class NormHelper {
       // For rmsnorm, it use Input's type weight and bias.
       // Currently, it only used in inference, so we do not save intermediate
       // result for backward.
-      const T* norm_weight_data = norm_weight.data<T>();
+      const T* norm_weight_data = norm_weight ? norm_weight.get().data<T>() : nullptr;
       const T* norm_bias_data = norm_bias ? norm_bias.get().data<T>() : nullptr;
       phi::RmsNormWrapper<T, phi::GPUContext>(dev_ctx_,
                                               x_data,
@@ -155,6 +155,26 @@ class NormHelper {
       PADDLE_THROW(phi::errors::Unimplemented(
           "Currently NormHelper only support `layernorm`, `rmsnorm`. "));
     }
+  }
+
+  // dst = x + residual + bias(optional)
+  void ResidualBiasAdd(const phi::DenseTensor& x,
+                       const paddle::optional<DenseTensor>& residual,
+                       const paddle::optional<DenseTensor>& bias,
+                       phi::DenseTensor* output) {
+    using U = phi::funcs::LayerNormParamType<T>;
+    const T* x_data = x.data<T>();
+    const T* residual_data = residual.get().data<T>();
+    const T* bias_data = bias ? bias.get().data<T>() : nullptr;
+    T* output_data = output->data<T>();
+
+    residual_bias_add_layernorm_helper_.ResidualDropoutBias(
+        dev_ctx_,
+        x_data,
+        residual_data,
+        bias_data,
+        output_data, 
+        nullptr/*dropout_mask_out_data*/);
   }
 
  private:
@@ -175,7 +195,7 @@ void NormHelperKernel(const Context& dev_ctx,
                       const DenseTensor& x,
                       const paddle::optional<DenseTensor>& residual,
                       const paddle::optional<DenseTensor>& bias,
-                      const DenseTensor& norm_weight,
+                      const paddle::optional<DenseTensor>& norm_weight,
                       const paddle::optional<DenseTensor>& norm_bias,
                       float epsilon,
                       float residual_alpha,
@@ -209,16 +229,24 @@ void NormHelperKernel(const Context& dev_ctx,
   if (residual) {
     T* residual_out_data = dev_ctx.template Alloc<T>(residual_out);
 
-    // Do residual+biasAdd+Norm fusion.
-    norm_helper.NormResidualBias(x,
-                                 residual,
-                                 bias, /*skip_bias*/
-                                 norm_weight,
-                                 norm_bias,
-                                 mean,
-                                 variance,
-                                 residual_out,
-                                 out);
+    if(norm_weight){
+      // Do residual+biasAdd+Norm fusion.
+      norm_helper.NormResidualBias(x,
+                                   residual,
+                                   bias, /*skip_bias*/
+                                   norm_weight,
+                                   norm_bias,
+                                   mean,
+                                   variance,
+                                   residual_out,
+                                   out);
+    } else {
+      // Do residual+biasAdd fusion.
+      norm_helper.ResidualBiasAdd(x,
+                                  residual,
+                                  bias, /*skip_bias*/
+                                  out);
+    }
   } else {
     // Do norm.
     norm_helper.Norm(x, norm_weight, norm_bias, mean, variance, out);
