@@ -2612,14 +2612,14 @@
   inplace : (x -> out), (prev_loss_scaling -> loss_scaling), (in_good_steps -> out_good_steps), (in_bad_steps -> out_bad_steps)
 
 - op : variable_length_memory_efficient_attention
-  args : (Tensor qkv, Tensor seq_lens, Tensor padding_offset, Tensor pre_cache, Tensor mask, float scale, bool causal)
+  args : (Tensor query, Tensor key, Tensor value, Tensor seq_lens, Tensor kv_seq_lens, Tensor mask, float scale, bool causal)
   output : Tensor
   infer_meta :
     func : VariableLengthMemoryEfficientAttentionInferMeta
   kernel :
     func : variable_length_memory_efficient_attention
-    data_type : qkv
-  optional : pre_cache, mask
+    data_type : query
+  optional : mask
 
 - op : viterbi_decode
   args : (Tensor potentials, Tensor transition_params, Tensor lengths, bool include_bos_eos_tag = true)
@@ -2700,3 +2700,13 @@
   optional : gt_score
   intermediate : objectness_mask, gt_match_mask
   backward : yolo_loss_grad
+
+- op : top_p_sampling
+  args : (Tensor x, Tensor ps, Tensor threshold, int random_seed=-1)
+  output : Tensor (out), Tensor(ids)
+  infer_meta :
+    func : TopPSamplingInferMeta
+  kernel :
+    func : top_p_sampling
+    data_type : x
+  optional : threshold

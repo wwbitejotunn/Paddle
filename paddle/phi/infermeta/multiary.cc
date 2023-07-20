@@ -2528,43 +2528,79 @@ void MemoryEfficientAttentionInferMeta(const MetaTensor& query,
   seed_and_offset->set_dtype(phi::DataType::INT64);
 }
 
-void VariableLengthMemoryEfficientAttentionInferMeta(
-    const MetaTensor& qkv,
-    const MetaTensor& seq_lens,
-    const MetaTensor& padding_offset,
-    const MetaTensor& pre_cache,
-    const MetaTensor& mask,
-    float scale,
-    bool causal,
-    MetaTensor* out) {
+void VariableLengthMemoryEfficientAttentionInferMeta(const MetaTensor& query,
+                                                     const MetaTensor& key,
+                                                     const MetaTensor& value,
+                                                     const MetaTensor& seq_lens,
+                                                     const MetaTensor& kv_seq_lens,
+                                                     const MetaTensor& mask,
+                                                     float scale,
+                                                     bool causal,
+                                                     MetaTensor* out) {
   PADDLE_ENFORCE_EQ(
-      qkv.dims().size(),
+      query.dims().size(),
       4,
-      phi::errors::InvalidArgument("qkv should be a 4-D tensor"
-                                   "But received qkv dimension(%s)",
-                                   qkv.dims().size()));
+      phi::errors::InvalidArgument("Query should be a 4-D tensor"
+                                   "But received Query dimension(%s)",
+                                   query.dims().size()));
+  PADDLE_ENFORCE_EQ(
+      key.dims().size(),
+      4,
+      phi::errors::InvalidArgument("Key should be a 4-D tensor"
+                                   "But received Key dimension(%s)",
+                                   key.dims().size()));
+  PADDLE_ENFORCE_EQ(
+      value.dims().size(),
+      4,
+      phi::errors::InvalidArgument("Value should be a 4-D tensor"
+                                   "But received Value dimension(%s)",
+                                   value.dims().size()));
 
-  const int64_t token_num = qkv.dims()[0];
-  const int64_t num_head = qkv.dims()[2];
-  const int64_t dim_head = qkv.dims()[3];
+  const int64_t query_batch_size = query.dims()[0];
+  const int64_t query_num_head = query.dims()[1];
+  const int64_t query_seq_length = query.dims()[2];
+  const int64_t query_head_size = query.dims()[3];
+
+  const int64_t key_batch_size = key.dims()[0];
+  const int64_t key_num_head = key.dims()[1];
+  const int64_t key_seq_length = key.dims()[2];
+  const int64_t key_head_size = key.dims()[3];
+
+  const int64_t value_batch_size = value.dims()[0];
+  const int64_t value_num_head = value.dims()[1];
+  const int64_t value_seq_length = value.dims()[2];
+  const int64_t value_head_size = value.dims()[3];
 
   PADDLE_ENFORCE_EQ(
-      token_num == padding_offset.dims()[0],
+      ((query_batch_size == key_batch_size) &&
+       (key_batch_size == value_batch_size)),
       true,
       phi::errors::InvalidArgument(
-          "The token_num of qkv, padding_offset should be equal."));
+          "The batchsize of Query, Key, Value should be equal."));
 
   PADDLE_ENFORCE_EQ(
-      qkv.dims()[1] == 3,
+      ((query_num_head == key_num_head) && (key_num_head == value_num_head)),
       true,
-      phi::errors::InvalidArgument("The second dim of qkv should be 3."));
+      phi::errors::InvalidArgument(
+          "The head number of Query, Key, Value should be equal."));
 
-  std::vector<int64_t> out_dims({token_num, num_head, dim_head});
+  PADDLE_ENFORCE_EQ(query_head_size == key_head_size,
+                    true,
+                    phi::errors::InvalidArgument(
+                        "The head size of Query, Key should be equal."));
+
+  PADDLE_ENFORCE_EQ(key_seq_length == value_seq_length,
+                    true,
+                    phi::errors::InvalidArgument(
+                        "The seq length of Key, Value should be equal."));
+
+  std::vector<int64_t> out_dims(
+      {query_batch_size, query_num_head, query_seq_length, value_head_size});
 
   out->set_dims(phi::make_ddim(out_dims));
-  out->share_lod(qkv);
-  out->set_dtype(qkv.dtype());
-  out->set_layout(qkv.layout());
+  out->share_lod(query);
+  out->set_dtype(query.dtype());
+  out->set_layout(query.layout());
 }
 
 void MeshgridInferMeta(const std::vector<const MetaTensor*>& inputs,

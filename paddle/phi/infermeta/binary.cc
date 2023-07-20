@@ -3207,6 +3207,27 @@ void Unpool3dInferMeta(const MetaTensor& x,
   }
 }
 
+void TopPSamplingInferMeta(const MetaTensor& x,
+                           const MetaTensor& ps,
+                           const MetaTensor& threshold,
+                           int random_seed,
+                           MetaTensor* out,
+                           MetaTensor* ids) {
+  auto x_dims = x.dims();
+  auto ps_dims = ps.dims();
+  PADDLE_ENFORCE_EQ(x_dims[0],
+                    ps_dims[0],
+                    phi::errors::InvalidArgument(
+                        "The x_dims[0] must be equal to ps_dims[0] "
+                        "But received x_dims[0] = %d and ps_dims[0] = %d.",
+                        x_dims[0],
+                        ps_dims[0]));
+  ids->set_dims(phi::make_ddim({x_dims[0], 1}));
+  ids->set_dtype(DataType::INT64);
+  out->set_dims(phi::make_ddim({x_dims[0], 1}));
+  out->set_dtype(x.dtype());
+}
+
 }  // namespace phi
 
 PD_REGISTER_INFER_META_FN(add_raw, phi::ElementwiseRawInferMeta);

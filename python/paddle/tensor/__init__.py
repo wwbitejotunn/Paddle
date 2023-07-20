@@ -286,6 +286,7 @@ from .search import argsort  # noqa: F401
 from .search import searchsorted  # noqa: F401
 from .search import bucketize  # noqa: F401
 from .search import topk  # noqa: F401
+from .search import top_p_sampling  # noqa: F401
 from .search import where  # noqa: F401
 from .search import index_select  # noqa: F401
 from .search import nonzero  # noqa: F401
@@ -490,6 +491,7 @@ tensor_method_func = [  # noqa
     'argsort',
     'masked_select',
     'topk',
+    'top_p_sampling',
     'where',
     'index_select',
     'nonzero',

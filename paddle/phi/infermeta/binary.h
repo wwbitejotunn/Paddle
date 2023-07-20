@@ -485,4 +485,11 @@ void Unpool3dInferMeta(const MetaTensor& x,
                        MetaTensor* out,
                        MetaConfig config = MetaConfig());
 
+void TopPSamplingInferMeta(const MetaTensor& x,
+                           const MetaTensor& ps,
+                           const MetaTensor& threshold,
+                           int random_seed,
+                           MetaTensor* out,
+                           MetaTensor* ids);
+                           
 }  // namespace phi

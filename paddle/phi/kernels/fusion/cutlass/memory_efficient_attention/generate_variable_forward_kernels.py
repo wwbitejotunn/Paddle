@@ -148,14 +148,13 @@ void  {NAME}({CPP_CLASS} default_fmha, Params &params, const phi::GPUContext& ct
       reinterpret_cast<GemmCoord*>(problem_sizes_device1->ptr());
   get_problem_sizes<<<params.num_batches, params.num_heads, 0, ctx.stream()>>>(
       params.seq_lens,
+      params.kv_seq_lens,
       problem0_device,
       problem1_device,
       params.num_batches,
       params.num_heads,
-      params.key_value_seq_len,
       params.head_size,
-      params.value_head_size,
-      params.prompt_num);
+      params.value_head_size);
   phi::memory_utils::Copy(phi::CPUPlace(),
                        problem_sizes1.data(),
                        ctx.GetPlace(),
@@ -180,12 +179,12 @@ void  {NAME}({CPP_CLASS} default_fmha, Params &params, const phi::GPUContext& ct
       problem_count,
       threadblock_count,
       params.num_heads,
-      reinterpret_cast<scalar_t*>(params.query_ptr),
-      reinterpret_cast<scalar_t*>(params.key_ptr),
+      const_cast<scalar_t*>(reinterpret_cast<const scalar_t*>(params.query_ptr)),
+      const_cast<scalar_t*>(reinterpret_cast<const scalar_t*>(params.key_ptr)),
       params.mask_ptr
-          ? reinterpret_cast<scalar_t*>(params.mask_ptr)
+          ? const_cast<scalar_t*>(reinterpret_cast<const scalar_t*>(params.mask_ptr))
           : nullptr,
-      reinterpret_cast<scalar_t*>(params.value_ptr),
+      const_cast<scalar_t*>(reinterpret_cast<const scalar_t*>(params.value_ptr)),
       reinterpret_cast<scalar_t*>(params.output_ptr),
       AttentionKernel::kNeedsOutputAccumulatorBuffer
           ? reinterpret_cast<output_accum_t*>(params.output_accum_ptr)
@@ -452,14 +451,15 @@ struct Params {{
   phi::DataType datatype;
 
   // [bs, nh, seq_len, dh]
-  void* query_ptr;
-  void* key_ptr;
-  void* value_ptr;
+  const void* query_ptr;
+  const void* key_ptr;
+  const void* value_ptr;
 
   // and it can be broadcasted in axis0, 1, 2.
-  void* mask_ptr = nullptr;
+  const void* mask_ptr = nullptr;
 
   const int* seq_lens = nullptr;
+  const int* kv_seq_lens = nullptr;
 
   // Output tensors
   void* output_ptr;  // [num_batches, num_heads, query_seq_len, head_size]
@@ -489,27 +489,24 @@ struct Params {{
   int64_t ElementV;
   int64_t ElementO;
 
-  int prompt_num = 0;
-
   bool causal;
   bool mask_broadcast_row;
 }};
 
 __global__ static void get_problem_sizes(const int* seq_lens,
+                                         const int* kv_seq_lens,
                                          GemmCoord* problem_sizes0,
                                          GemmCoord* problem_sizes1,
                                          const int bs,
                                          const int num_head,
-                                         const int kv_seq_len,
                                          const int head_size,
-                                         const int value_head_size,
-                                         const int prompt_num) {{
+                                         const int value_head_size) {{
   int bi = blockIdx.x;
   int hi = threadIdx.x;
   if (bi < bs && hi < num_head) {{
     int id = bi * num_head + hi;
     int m = seq_lens[bi];
-    int mkv = m + prompt_num;
+    int mkv = kv_seq_lens[bi];
     int k0 = head_size;
     int k1 = value_head_size;
     GemmCoord problem0(m, mkv, k0);
@@ -558,13 +555,13 @@ struct ToPhiDTypeTrait {{
 
     path = Path(args.dst_path) / "autogen_variable"
     os.makedirs(path, exist_ok=True)
-    path = Path(path) / "variable_length_memory_efficient_attention.h"
+    path = Path(path) / "memory_efficient_variable_attention.h"
     path.write_text(main_header_content)
 
 
 if os.path.exists(Path(args.dst_path) / "autogen_variable"):
     shutil.rmtree(Path(args.dst_path) / "autogen_variable")
-forward_impl = "paddle/phi/kernels/fusion/cutlass/memory_efficient_attention/autogen_variable/variable_length_memory_efficient_attention.h"
+forward_impl = "paddle/phi/kernels/fusion/cutlass/memory_efficient_attention/autogen_variable/memory_efficient_variable_attention.h"
 
 write_main_header()
 
