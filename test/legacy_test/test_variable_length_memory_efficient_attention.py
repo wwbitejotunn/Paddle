@@ -21,7 +21,9 @@ import numpy as np
 import paddle
 from paddle import fluid
 from paddle.fluid import Program, core, program_guard
-from paddle.incubate.nn.functional import variable_length_memory_efficient_attention
+from paddle.incubate.nn.functional import (
+    variable_length_memory_efficient_attention,
+)
 
 paddle.seed(2023)
 
@@ -124,7 +126,13 @@ class TestMemEffAttentionVariableAPI(unittest.TestCase):
         out_ = naive_attention_impl(q, k, v, self.attention_mask, self.scale)
 
         out = variable_length_memory_efficient_attention(
-            q, k, v, self.seq_lens, self.seq_lens, self.attention_mask, self.scale
+            q,
+            k,
+            v,
+            self.seq_lens,
+            self.seq_lens,
+            self.attention_mask,
+            self.scale,
         )
 
         np.testing.assert_allclose(out.numpy(), out_, rtol=5e-03, atol=1e-03)

@@ -27,7 +27,14 @@ from paddle.framework import in_dynamic_mode
 
 
 def variable_length_memory_efficient_attention(
-    query, key, value, seq_lens, kv_seq_lens, mask=None, scale=None, causal=False
+    query,
+    key,
+    value,
+    seq_lens,
+    kv_seq_lens,
+    mask=None,
+    scale=None,
+    causal=False,
 ):
     """
     Cutlass Memory Efficient Variable Attention.
@@ -94,7 +101,9 @@ def variable_length_memory_efficient_attention(
             query, key, value, seq_lens, kv_seq_lens, mask, scale, causal
         )
 
-    helper = LayerHelper('variable_length_memory_efficient_attention', **locals())
+    helper = LayerHelper(
+        'variable_length_memory_efficient_attention', **locals()
+    )
     out = helper.create_variable_for_type_inference(dtype=query.dtype)
     helper.append_op(
         type='variable_length_memory_efficient_attention',
