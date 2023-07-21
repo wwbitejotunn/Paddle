@@ -12,10 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef PADDLE_WITH_HIP
-
-#pragma once
-
 #include "paddle/phi/kernels/fusion/gpu/masked_multihead_attention.h"
 #include "paddle/phi/backends/gpu/gpu_context.h"
 #include "paddle/phi/core/kernel_registry.h"
@@ -26,19 +22,17 @@ namespace fusion {
 template <typename T, typename Context>
 void MMHAKernel(const Context& dev_ctx,
                 const DenseTensor& x,
-                const paddle::optional<DenseTensor>& bias,
+                const DenseTensor& cache_kv,
                 const paddle::optional<DenseTensor>& src_mask,
+                const paddle::optional<DenseTensor>& cum_offsets,
                 const paddle::optional<DenseTensor>& sequence_lengths,
                 const paddle::optional<DenseTensor>& rotary_tensor,
                 const paddle::optional<DenseTensor>& beam_cache_offset,
-                const DenseTensor& cache_kv,
                 const paddle::optional<DenseTensor>& qkv_out_scale,
                 const paddle::optional<DenseTensor>& out_linear_shift,
                 const paddle::optional<DenseTensor>& out_linear_smooth,
-                int beam_size,
+                int seq_len,
                 int rotary_emb_dims,
-                const bool mask_broadcast_num_heads,
-                const bool compute_bias,
                 const bool use_neox_rotary_style,
                 const float out_linear_in_scale,
                 const int quant_round_type,
@@ -47,6 +41,7 @@ void MMHAKernel(const Context& dev_ctx,
                 DenseTensor* out,
                 DenseTensor* cache_kv_out,
                 DenseTensor* beam_cache_offset_out) {
+#ifndef PADDLE_WITH_HIP
   const auto& x_dims = x.dims();
   int bsz = x_dims[0];
   int num_head = x_dims[2];
@@ -55,6 +50,22 @@ void MMHAKernel(const Context& dev_ctx,
   int cache_bsz = cache_kv.dims()[1];
   int max_seq_len = cache_kv.dims()[3];
   float inv_sqrt_dh = 1. / sqrt(dim_head);
+
+  bool mask_broadcast_num_heads = true;
+  if (src_mask) {
+    if (src_mask->dims()[1] == 1) {
+      mask_broadcast_num_heads = true;
+    } else if (src_mask->dims()[1] == num_head) {
+      mask_broadcast_num_heads = false;
+    } else {
+      PADDLE_THROW(errors::InvalidArgument(
+          "Unknow dimension for attn_mask, the num_head(2nd) "
+          "dimension is invalid, it should be 1 or num_head(%d), "
+          "but got %d",
+          num_head,
+          src_mask->dims()[1]));
+    }
+  }
 
   if (out_linear_in_scale > 0) {
     dev_ctx.template Alloc<int8_t>(out);
@@ -72,6 +83,13 @@ void MMHAKernel(const Context& dev_ctx,
   if (sequence_lengths) {
     params.sequence_lengths = sequence_lengths->data<int>();
   }
+
+  if (cum_offsets) {
+    params.cum_offsets = cum_offsets->data<int>();
+  } else {
+    params.cum_offsets = nullptr;
+  }
+
   if (rotary_emb_dims > 0) {
     params.rotary_emb = rotary_tensor->data<float>();
   } else {
@@ -80,23 +98,19 @@ void MMHAKernel(const Context& dev_ctx,
 
   if (beam_cache_offset) {
     params.beam_cache_offset = beam_cache_offset->data<int>();
+    params.beam_width = beam_cache_offset->dims()[1];
   }
 
-  params.add_qkv_bias = compute_bias;
-  if (compute_bias) {
-    // Because we may not add qkv_bias, so here we cast to T*.
-    // Author(zhengzekang).
-    params.qkv_bias = const_cast<T*>(bias->data<T>());
-  }
-
+  params.add_qkv_bias = false;
   params.batch_size = bsz;
   params.cache_batch_size = cache_bsz;
-  params.beam_width = beam_size;
   params.num_head = num_head;
   params.timestep = timestep;
+  params.seq_len = seq_len;
   params.max_seq_length = max_seq_len;
   params.inv_sqrt_dh = inv_sqrt_dh;
   params.rotary_emb_dims = rotary_emb_dims;
+
   if (out_linear_shift) {
     DispatchFMHA<T>(dev_ctx,
                     x,
@@ -124,23 +138,25 @@ void MMHAKernel(const Context& dev_ctx,
                     quant_max_bound,
                     quant_min_bound);
   }
+#endif  // PADDLE_WITH_HIP
 }
 
 }  // namespace fusion
 }  // namespace phi
 
+#if CUDA_VERSION >= 11000
 PD_REGISTER_KERNEL(masked_multihead_attention,
                    GPU,
                    ALL_LAYOUT,
                    phi::fusion::MMHAKernel,
                    float,
-#if CUDA_VERSION >= 11000
                    phi::dtype::float16,
-                   phi::dtype::bfloat16) {
-}
+                   phi::dtype::bfloat16) {}
 #else
-                   phi::dtype::float16) {
-}
+PD_REGISTER_KERNEL(masked_multihead_attention,
+                   GPU,
+                   ALL_LAYOUT,
+                   phi::fusion::MMHAKernel,
+                   float,
+                   phi::dtype::float16) {}
 #endif
-
-#endif  // PADDLE_WITH_HIP
