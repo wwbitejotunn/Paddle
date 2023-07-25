@@ -39,6 +39,7 @@ def _all_reduce_in_static_mode(tensor, op, group, sync_op, use_calc_stream):
         tensor,
         'tensor',
         [
+            'uint16',
             'float16',
             'float32',
             'float64',
