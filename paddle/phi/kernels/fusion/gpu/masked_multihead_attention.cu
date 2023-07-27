@@ -33,6 +33,8 @@ void MMHAKernel(const Context& dev_ctx,
                 const paddle::optional<DenseTensor>& out_linear_smooth,
                 int seq_len,
                 int rotary_emb_dims,
+                int num_head,
+                int dim_head,
                 const bool use_neox_rotary_style,
                 const float out_linear_in_scale,
                 const int quant_round_type,
@@ -44,8 +46,8 @@ void MMHAKernel(const Context& dev_ctx,
 #ifndef PADDLE_WITH_HIP
   const auto& x_dims = x.dims();
   int bsz = x_dims[0];
-  int num_head = x_dims[2];
-  int dim_head = x_dims[3];
+  // int num_head = x_dims[2];
+  // int dim_head = x_dims[3];
   int timestep = src_mask->dims()[3] - 1;
   int cache_bsz = cache_kv.dims()[1];
   int max_seq_len = cache_kv.dims()[3];

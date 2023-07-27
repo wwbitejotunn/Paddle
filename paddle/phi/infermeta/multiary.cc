@@ -3892,6 +3892,8 @@ void MaskedMultiheadAttentionInferMeta(const MetaTensor& x,
                                        const MetaTensor& out_linear_smooth,
                                        int seq_len,
                                        int rotary_emb_dims,
+                                       int num_head,
+                                       int dim_head,
                                        const bool use_neox_rotary_style,
                                        const float out_linear_in_scale,
                                        const int quant_round_type,
@@ -3903,25 +3905,25 @@ void MaskedMultiheadAttentionInferMeta(const MetaTensor& x,
   auto x_dims = x.dims();
   auto x_dtype = x.dtype();
   int bsz = x_dims[0];
-  int num_head = x_dims[2];
-  int dim_head = x_dims[3];
+  // int num_head = x_dims[2];
+  // int dim_head = x_dims[3];
 
   auto cache_kv_dims = cache_kv.dims();
 
-  PADDLE_ENFORCE_EQ(
-      x_dims.size(),
-      4,
-      errors::InvalidArgument("The dimensions of x must be 4"
-                              "(batch_size, 3, num_head, dim_head),"
-                              "but received dimensions of"
-                              "Input is [%d]",
-                              x_dims.size()));
+  // PADDLE_ENFORCE_EQ(
+  //     x_dims.size(),
+  //     4,
+  //     errors::InvalidArgument("The dimensions of x must be 4"
+  //                             "(batch_size, 3, num_head, dim_head),"
+  //                             "but received dimensions of"
+  //                             "Input is [%d]",
+  //                             x_dims.size()));
 
-  PADDLE_ENFORCE_EQ(
-      x_dims[1],
-      3,
-      errors::InvalidArgument("The second dim of input x must be 3, but got %d",
-                              x_dims[1]));
+  // PADDLE_ENFORCE_EQ(
+  //     x_dims[1],
+  //     3,
+  //     errors::InvalidArgument("The second dim of input x must be 3, but got %d",
+  //                             x_dims[1]));
 
   PADDLE_ENFORCE_EQ(
       cache_kv_dims.size(),
