@@ -709,7 +709,11 @@ ParallelExecutor::ParallelExecutor(const std::vector<platform::Place> &places,
   // ncclOp
   std::vector<ir::Graph *> async_graphs =
       CompileGraphWithBuildStrategy(graph, &graphs, loss_var_name);
+  const auto time_before_PrepareForCUDAGraphCapture = std::chrono::steady_clock::now();
   PrepareForCUDAGraphCapture(graph);
+  const auto time_after_PrepareForCUDAGraphCapture = std::chrono::steady_clock::now();
+  const std::chrono::duration<double> PrepareForCUDAGraphCapture_cost_time = time_after_PrepareForCUDAGraphCapture - time_before_PrepareForCUDAGraphCapture;
+  VLOG(0)<<"parallel executor, PrepareForCUDAGraphCapture cost time: "<<PrepareForCUDAGraphCapture_cost_time.count();
   graph = member_->ApplyMemoryOptimizePass(graph);
   async_graphs[0] = graph;
 

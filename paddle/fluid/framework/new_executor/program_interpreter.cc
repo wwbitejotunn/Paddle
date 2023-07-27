@@ -30,7 +30,8 @@
 #endif
 #include "paddle/fluid/platform/cuda_graph_with_memory_pool.h"
 #include "paddle/phi/backends/device_manager.h"
-
+#include <chrono>
+#include <ctime>
 namespace paddle {
 namespace framework {
 
@@ -158,6 +159,11 @@ FetchList ProgramInterpreter::Run(
   }
 }
 
+
+uint64_t get_time_stamp(){
+  return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+}
+
 FetchList ProgramInterpreter::Run(const std::vector<std::string>& feed_names,
                                   bool need_fetch) {
   SetDeviceId(place_);
@@ -169,10 +175,12 @@ FetchList ProgramInterpreter::Run(const std::vector<std::string>& feed_names,
 
   if (!is_build_) {
     LOG_FIRST_N(INFO, 1) << "New Executor is Running.";
+    VLOG(0)<<"### parallel_!isbuild_ time step: "<<get_time_stamp() << " ms";
     paddle::framework::interpreter::BuildVariableScope(
         block_, execution_config_, &var_scope_);
-
+    VLOG(0)<<"### parallel_!isbuild_ time step: "<<get_time_stamp() << " ms";
     std::vector<paddle::framework::OpFuncNode> op_func_nodes;
+    VLOG(0)<<"### parallel_!isbuild_ time step: "<<get_time_stamp() << " ms";
     paddle::framework::interpreter::BuildOpFuncList(
         place_,
         block_,
@@ -182,14 +190,19 @@ FetchList ProgramInterpreter::Run(const std::vector<std::string>& feed_names,
         execution_config_,
         HasLocalScope(),
         static_build_);
+    VLOG(0)<<"### parallel_!isbuild_ time step: "<<get_time_stamp() << " ms";
     SetFeedVarsInplaceSkip(feed_names);
+    VLOG(0)<<"### parallel_!isbuild_ time step: "<<get_time_stamp() << " ms";
     // convert vec func_list to graph
     Convert(&op_func_nodes);
+    VLOG(0)<<"### parallel_!isbuild_ time step: "<<get_time_stamp() << " ms";
     UpdateSyncOpNum();
+    VLOG(0)<<"### parallel_!isbuild_ time step: "<<get_time_stamp() << " ms";
     if (static_build_) {
       VLOG(4) << "RUN impl";
       RunImpl();
     }
+    VLOG(0)<<"### parallel_!isbuild_ time step: "<<get_time_stamp() << " ms";
     is_build_ = true;
   } else {
     RunImpl();

@@ -18,7 +18,8 @@
 #include "paddle/fluid/framework/operator.h"
 #include "paddle/fluid/operators/controlflow/control_flow_op_helper.h"
 #include "paddle/fluid/operators/controlflow/while_op_helper.h"
-
+#include <chrono>
+#include <sched.h>
 #ifdef PADDLE_WITH_MKLDNN
 #include "paddle/fluid/platform/mkldnn_helper.h"
 #endif
@@ -102,6 +103,7 @@ class WhileOp : public framework::OperatorBase {
  private:
   void RunImpl(const framework::Scope &scope,
                const platform::Place &dev_place) const override {
+    const auto while_run_impl_start = std::chrono::steady_clock::now();
     PADDLE_ENFORCE_NOT_NULL(scope.FindVar(Input(kCondition)),
                             platform::errors::NotFound(
                                 "Input(Condition) of WhileOp is not found."));
@@ -127,7 +129,6 @@ class WhileOp : public framework::OperatorBase {
     // get device context from pool
     platform::DeviceContextPool &pool = platform::DeviceContextPool::Instance();
     auto &dev_ctx = *pool.Get(dev_place);
-
     bool is_test = Attr<bool>("is_test");
 
     std::set<std::string> no_copy_var_names;
@@ -221,9 +222,13 @@ class WhileOp : public framework::OperatorBase {
     }
 
     core_->SetOutputHooks(hookfuncs_);
-
+    const auto while_run_impl_before_while = std::chrono::steady_clock::now();
+    const std::chrono::duration<double> elapsed_seconds_to_while = while_run_impl_before_while - while_run_impl_start;
+    VLOG(0)<<"while op timer, before while cost time: "<<elapsed_seconds_to_while.count();
+    // const auto while_loop_start = std::chrono::steady_clock::now();
     if (!is_test) {
       while (cond_data) {
+        const auto while_loop_start = std::chrono::steady_clock::now();
         auto &current_scope = scope.NewScope();
         step_scopes->push_back(&current_scope);
 
@@ -248,6 +253,9 @@ class WhileOp : public framework::OperatorBase {
 
         BuildScopeForControlFlowOp(*core_, *block, &current_scope);
         core_->reset_scope(&current_scope);
+        const auto while_loop_before_run = std::chrono::steady_clock::now();
+        const std::chrono::duration<double> elapsed_seconds_while_loop_before_run = while_loop_before_run - while_loop_start;
+        VLOG(0)<<"### elapsed_seconds_while_loop_before_run: "<<elapsed_seconds_while_loop_before_run.count();
         core_->Run({}, false);
 
         // restore inputs place
@@ -267,6 +275,7 @@ class WhileOp : public framework::OperatorBase {
             scope.FindVar(Input(kCondition))->Get<phi::DenseTensor>());
       }
     } else {
+      const auto inferece_scope_start = std::chrono::steady_clock::now();
       framework::Scope *current_scope = nullptr;
       if (!FLAGS_cache_inference_while_scope) {
         current_scope = &(scope.NewScope());
@@ -280,8 +289,18 @@ class WhileOp : public framework::OperatorBase {
         }
         current_scope = cached_inference_scope_;
       }
-
+      const auto inferece_scope_stop = std::chrono::steady_clock::now();
+      const std::chrono::duration<double> elapsed_seconds_inferece_scope_stop = inferece_scope_stop - inferece_scope_start;
+      VLOG(0)<<"### elapsed_seconds_inferece_scope_stop: "<<elapsed_seconds_inferece_scope_stop.count();
+      auto device_id = dev_place.GetDeviceId();
+      auto pid = getpid();
+      int cpu_core_id = device_id*2;
+      cpu_set_t cpuset;
+      CPU_ZERO(&cpuset);
+      CPU_SET(cpu_core_id, &cpuset);
+      sched_setaffinity(pid, sizeof(cpu_set_t), &cpuset);
       while (cond_data) {
+        const auto while_loop_start = std::chrono::steady_clock::now();
         for (auto &name : current_scope->LocalVarNames()) {
           auto *var = current_scope->Var(name);
           if (var->IsType<phi::DenseTensor>()) {
@@ -295,13 +314,16 @@ class WhileOp : public framework::OperatorBase {
             t->clear();
           }
         }
-
+        const auto while_loop_before_run = std::chrono::steady_clock::now();
+        const std::chrono::duration<double> elapsed_seconds_while_loop_before_run = while_loop_before_run - while_loop_start;
+        VLOG(0)<<"### elapsed_seconds_while_loop_before_run: "<<elapsed_seconds_while_loop_before_run.count();
         core_->Run({}, false);
 
         cond_data = GetCondData(
             scope.FindVar(Input(kCondition))->Get<phi::DenseTensor>());
       }
-
+      CPU_ZERO(&cpuset);
+      sched_setaffinity(pid, sizeof(cpu_set_t), &cpuset);
       if (!FLAGS_cache_inference_while_scope) {
         scope.DeleteScope(current_scope);
       }
