@@ -117,7 +117,9 @@ void generic_mixed_gemm_kernelLauncher(const T* A,
                                        MixedGemmArchTraits::ElementsPerAccessC,
                                        ElementAccumulator,
                                        EpilogueTag>::Op;
-if(gemm_config.split_k_style == SplitKStyle::NO_SPLIT_K){
+// TODO(wangbojun), just debug
+if(false){
+// if(gemm_config.split_k_style == SplitKStyle::NO_SPLIT_K){
     using GemmKernel_ = typename cutlass::gemm::kernel::DefaultGemm<
         ElementType,
         cutlass::layout::RowMajor,

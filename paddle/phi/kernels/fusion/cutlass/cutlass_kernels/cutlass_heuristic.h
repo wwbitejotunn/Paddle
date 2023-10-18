@@ -172,7 +172,7 @@ static CutlassGemmConfig estimate_best_config_from_occupancies(
   }
 
   CutlassGemmConfig best_config;
-  if(m >= 256){
+  if( (m >= 256) && (n > k * 2)){
       best_config=CutlassGemmConfig{CutlassTileConfig::CtaShape128x256x64_WarpShape64x64x64, SplitKStyle::NO_SPLIT_K, 1, 5};
   } else {
     // Score will be [0, 1]. The objective is to minimize this score.
