@@ -223,6 +223,8 @@ if(false){
       throw std::runtime_error("[fpA_intB Runner] " + err_msg);
     }
   } else {
+      // TODO(WANGBOJUN)
+      gemm_config.split_k_factor = 1;
       using GemmKernel_ = typename cutlass::gemm::kernel::DefaultGemmUniversal<
           ElementType,
           cutlass::layout::RowMajor,
