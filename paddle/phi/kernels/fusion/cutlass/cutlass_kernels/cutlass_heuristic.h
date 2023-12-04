@@ -128,6 +128,7 @@ static std::vector<CutlassTileConfig> get_candidate_tiles(
 
   std::vector<CutlassTileConfig> quant_B_configs;
   switch (sm) {
+    case 86:
     case 80:
       quant_B_configs = quant_B_configs_sm80;
       break;

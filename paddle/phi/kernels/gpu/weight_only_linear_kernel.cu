@@ -34,9 +34,9 @@ void WeightOnlyLinearKernel(const Context& dev_ctx,
                             DenseTensor* out) {
 #if defined(PADDLE_WITH_CUTLASS)
   PADDLE_ENFORCE_EQ(
-      ((arch == 80) || (arch == 70)),
+      ((arch == 80) || (arch == 70) || (arch == 85)),
       true,
-      phi::errors::InvalidArgument("Currently, arch only support 70, 80."));
+      phi::errors::InvalidArgument("Currently, arch only support 70, 80, 86."));
 #else
   PADDLE_THROW(phi::errors::Unimplemented(
       "Please compile with cutlass to make cutlass available"));
