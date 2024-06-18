@@ -46,6 +46,8 @@ bool flash_attn_varlen_fwd(const void * const q,  // total_q x num_heads x head_
                            const int32_t * const cu_seqlens_k,  // b+1
                            const int32_t * const chunked_seqlens_q,  // b
                            const int32_t * const chunked_seqlens_k,  // b+1
+                           const int32_t * const chunked_seq_sink_token_mask_lens_k,
+                           const int32_t * const chunked_seq_continus_token_lens_k,
                            void * const rng_state,
                            void * const out, // total_q x num_heads x head_size, total_k := \sum_{i=0}^{b} s_i
                            void * const softmax_ptr,

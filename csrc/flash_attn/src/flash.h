@@ -84,6 +84,12 @@ struct Flash_fwd_params : public Qkv_params {
     int * __restrict__ chunked_seq_lens_q;
     int * __restrict__ chunked_seq_lens_k;
 
+    // sink token seq_id
+    int * __restrict__ chunked_seq_sink_token_mask_lens_k;
+    // chunk token seq_id
+    // 0__sink_token_start--skip--chunked_token_start__chunk_token_end;
+    int * __restrict__ chunked_seq_continus_token_lens_k;
+
     // If provided, the actual length of each k sequence.
     int * __restrict__ seqused_k;
 
