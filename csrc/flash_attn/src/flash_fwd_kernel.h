@@ -65,6 +65,7 @@ inline __device__ void compute_attn_1rowblock(const Params &params, const int bi
         printf(" q_seqlen_offset:%d, n_block_min: %d,  \n",
                  binfo.sum_s_q + m_block * kBlockM, n_block_min );
     }
+
     int n_block_max = cute::ceil_div(binfo.actual_seqlen_k, kBlockN);
     int n_block_chunked_continus_num = cute::ceil_div(binfo.chunked_seq_continus_token_lens_k, kBlockN);
     int n_block_sink_token_mask_num = (binfo.chunked_seq_sink_token_mask_lens_k / kBlockN);
@@ -72,6 +73,8 @@ inline __device__ void compute_attn_1rowblock(const Params &params, const int bi
         int n_block_max_old = n_block_max;
         n_block_max = std::min(n_block_max,
                                cute::ceil_div((m_block + 1) * kBlockM + binfo.actual_seqlen_k - binfo.actual_seqlen_q + params.window_size_right, kBlockN));
+        print("###### (m_block + 1) * kBlockM:%d, binfo.actual_seqlen_k:%d, binfo.actual_seqlen_q:%d, kBlockN:%d \n",
+              (m_block + 1) * kBlockM, binfo.actual_seqlen_k, binfo.actual_seqlen_q, kBlockN);
         int casual_diff_nblock = n_block_max_old - n_block_max;
         n_block_chunked_continus_num -= casual_diff_nblock;
         // n_block_sink_token_mask_num = std::max(0, n_block_sink_token_mask_num - casual_diff_nblock);
@@ -125,13 +128,23 @@ inline __device__ void compute_attn_1rowblock(const Params &params, const int bi
     const index_t row_offset_q = binfo.q_offset(params.q_batch_stride, params.q_row_stride, bidb)
         + m_block * kBlockM * params.q_row_stride + bidh * params.q_head_stride;
     // We move K and V to the last block.
+
     const index_t row_offset_k = binfo.k_offset(params.k_batch_stride, params.k_row_stride, bidb)
-        + (n_block_max - 1) * kBlockN * params.k_row_stride + (bidh / params.h_h_k_ratio) * params.k_head_stride;
+        + (n_block_chunked_continus_num - 1) * kBlockN * params.k_row_stride + (bidh / params.h_h_k_ratio) * params.k_head_stride;
     const index_t row_offset_v = binfo.k_offset(params.v_batch_stride, params.v_row_stride, bidb)
-        + (n_block_max - 1) * kBlockN * params.v_row_stride + (bidh / params.h_h_k_ratio) * params.v_head_stride;
+        + (n_block_chunked_continus_num - 1) * kBlockN * params.v_row_stride + (bidh / params.h_h_k_ratio) * params.v_head_stride;
     const index_t row_offset_p = ((bidb * params.h + bidh) * params.seqlen_q_rounded
         + m_block * kBlockM) * params.seqlen_k_rounded + (n_block_max - 1) * kBlockN;
-
+    if(threadIdx.x == 0){
+        printf("### row_offset_k:%lld, row_offset_v:%lld, binfo.k_offset:%lld, binfo.sum_s_k:%d, n_block_max: %d, n_block_chunked_continus_num:%d\n",
+                row_offset_k,
+                row_offset_v,
+                binfo.k_offset(params.k_batch_stride, params.k_row_stride, bidb),
+                binfo.sum_s_k,
+                n_block_max,
+                n_block_chunked_continus_num
+               );
+    }
     // const uint64_t row_offset_mask = (uint64_t)((bidb * params.mask_head_mod_size
     //     + (bidh % params.mask_head_mod_size)) * params.mask_seq_q_mod_size
     //     + (m_block * kBlockM % params.mask_seq_q_mod_size)) * params.seqlen_k
@@ -276,6 +289,11 @@ inline __device__ void compute_attn_1rowblock(const Params &params, const int bi
 
     int n_block = n_block_max - 1;
     // We don't need to clear the sK smem tiles since we'll mask out the scores anyway.
+    if(threadIdx.x==0){
+        printf("###@@@ first copy k, binfo.actual_seqlen_k:%d, n_block * kBlockN:%d \n",
+                binfo.actual_seqlen_k, 
+                n_block * kBlockN);
+    }
     flash::copy<Is_even_MN, Is_even_K>(gmem_tiled_copy_QKV, tKgK, tKsK, tKVcKV, tKVpKV,
                                        binfo.actual_seqlen_k - n_block * kBlockN);
     cute::cp_async_fence();
@@ -328,6 +346,11 @@ inline __device__ void compute_attn_1rowblock(const Params &params, const int bi
             flash::copy</*Is_even_MN=*/true, Is_even_K>(gmem_tiled_copy_QKV, tVgV, tVsV, tKVcKV, tKVpKV);
         } else {
             // Clear the smem tiles to account for predicated off loads
+            if(threadIdx.x==0){
+                printf("###@@@ first copy v, binfo.actual_seqlen_k:%d, n_block * kBlockN:%d \n",
+                        binfo.actual_seqlen_k, 
+                        n_block * kBlockN);
+            }
             flash::copy<Is_even_MN, Is_even_K, /*Clear_OOB_MN=*/true>(
                 gmem_tiled_copy_QKV, tVgV, tVsV, tKVcKV, tKVpKV, binfo.actual_seqlen_k - n_block * kBlockN
             );
@@ -441,7 +464,7 @@ inline __device__ void compute_attn_1rowblock(const Params &params, const int bi
             // Advance gK
             if(threadIdx.x==0){
                 printf("@#@#@#@ tkgk, q_seqlen_offset:%d, n_block_max:%d, n_block:%d,  n_block_chunked_continus_num:%d, n_block_sink_token_mask_num:%d, tKgK:%p \n ",
-                        binfo.sum_s_q + m_block * kBlockM, n_block_max, n_block, n_block_chunked_continus_num, n_block_sink_token_mask_num, tKgK.data();
+                        binfo.sum_s_q + m_block * kBlockM, n_block_max, n_block, n_block_chunked_continus_num, n_block_sink_token_mask_num, tKgK.data());
             }
             flash::copy</*Is_even_MN=*/true, Is_even_K>(gmem_tiled_copy_QKV, tKgK, tKsK, tKVcKV, tKVpKV);
             // This cp_async_fence needs to be in the if block, otherwise the synchronization
@@ -450,7 +473,10 @@ inline __device__ void compute_attn_1rowblock(const Params &params, const int bi
         }
 
         mask.template apply_mask</*Causal_mask=*/false>(
-            acc_s, n_block * kBlockN, m_block * kBlockM + (tidx / 32) * 16 + (tidx % 32) / 4, kNWarps * 16
+            acc_s, 
+            n_block * kBlockN, 
+            m_block * kBlockM + (tidx / 32) * 16 + (tidx % 32) / 4, 
+            kNWarps * 16
         );
 
         softmax.template softmax_rescale_o</*Is_first=*/false, /*Check_inf=*/Is_local>(acc_s, acc_o, params.scale_softmax_log2);
